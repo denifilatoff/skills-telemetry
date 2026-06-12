@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"$(git rev-parse --show-toplevel)/apm_modules/_local/qubership-skills-telemetry/.apm/hooks/scripts/bootstrap.sh\" ingest --agent=codex --endpoint=https://REPLACE_ME/v1/logs",
+            "commandWindows": "powershell -NoProfile -ExecutionPolicy Bypass -File \"%CD%\\apm_modules\\_local\\qubership-skills-telemetry\\.apm\\hooks\\scripts\\bootstrap.ps1\" ingest --agent=codex --endpoint=https://REPLACE_ME/v1/logs",
+            "timeout": 30,
+            "statusMessage": "Recording skill telemetry"
+          }
+        ]
+      }
+    ]
+  }
+}

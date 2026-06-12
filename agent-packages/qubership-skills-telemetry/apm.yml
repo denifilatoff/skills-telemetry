@@ -1,0 +1,4 @@
+name: qubership-skills-telemetry
+version: 1.0.0
+description: APM package for collecting telemetry about Qubership skill usage events.
+author: Denis Filatov

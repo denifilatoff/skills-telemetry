@@ -1,0 +1,12 @@
+
+# APM dependencies
+apm_modules/
+
+# Local Codex and agent state
+.agents/
+.codex/
+
+# Sender build output
+sender/dist/
+sender/skills-telemetry
+sender/skills-telemetry.exe

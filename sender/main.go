@@ -35,6 +35,7 @@ func run(args []string, stdout func(string)) int {
 		return 0
 	case "ingest":
 		agent, endpoint := parseFlags(args[1:])
+		endpoint = resolveEndpoint(endpoint)
 		s, err := DefaultSpool()
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "spool:", err)
@@ -44,6 +45,7 @@ func run(args []string, stdout func(string)) int {
 		return ingest(s, agent, endpoint, raw, gitRemote)
 	case "flush":
 		_, endpoint := parseFlags(args[1:])
+		endpoint = resolveEndpoint(endpoint)
 		s, err := DefaultSpool()
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "spool:", err)

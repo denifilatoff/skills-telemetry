@@ -22,5 +22,3 @@ OpenCode adapters are follow-up work.
 - **All repository files are English only.** Markdown, code, comments, commit messages, and
   identifiers — no other language in any committed file. Translate anything that is not
   English before committing.
-- **Chat with the user in Russian.** This applies to conversation only, never to file
-  content.

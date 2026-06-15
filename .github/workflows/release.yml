@@ -1,0 +1,99 @@
+name: release
+
+# Build the sender binary for every supported target and publish them to a
+# GitHub Release. Triggered by pushing a v* tag, or run manually with an
+# explicit version. The version is baked in via -X main.version and the asset
+# names match what bootstrap.sh downloads: skills-telemetry-<os>-<arch>.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to build, e.g. v0.1.0'
+        required: true
+
+permissions:
+  contents: read
+
+env:
+  VERSION: ${{ github.event.inputs.version || github.ref_name }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: sender/go.mod
+          cache-dependency-path: sender/go.sum
+      - name: Test
+        working-directory: sender
+        run: go test ./...
+
+  build:
+    needs: test
+    name: build ${{ matrix.goos }}/${{ matrix.goarch }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - { goos: darwin, goarch: amd64 }
+          - { goos: darwin, goarch: arm64 }
+          - { goos: linux, goarch: amd64 }
+          - { goos: linux, goarch: arm64 }
+          - { goos: windows, goarch: amd64 }
+          - { goos: windows, goarch: arm64 }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: sender/go.mod
+          cache-dependency-path: sender/go.sum
+      - name: Build
+        working-directory: sender
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: '0'
+        run: |
+          name="skills-telemetry-${GOOS}-${GOARCH}"
+          [ "$GOOS" = windows ] && name="${name}.exe"
+          mkdir -p ../dist
+          go build -trimpath -ldflags "-s -w -X main.version=${VERSION}" -o "../dist/${name}" .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: skills-telemetry-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Checksums
+        working-directory: dist
+        run: sha256sum skills-telemetry-* > SHA256SUMS
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$VERSION" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$VERSION" dist/* --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$VERSION" dist/* \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "$VERSION" \
+              --generate-notes
+          fi

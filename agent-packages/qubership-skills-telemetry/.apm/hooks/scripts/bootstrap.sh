@@ -3,8 +3,10 @@
 # then exec it forwarding all args and stdin. POSIX sh; only built-in tools.
 set -eu
 
-BINARY_VERSION="0.1.0"
-BASE_URL="https://REPLACE_ME/skills-telemetry"  # set by release
+# BINARY_VERSION is the release tag; BASE_URL/<tag>/<asset> is the GitHub
+# Releases download layout, so the URL below resolves to a real asset.
+BINARY_VERSION="v0.1.0"
+BASE_URL="https://github.com/denifilatoff/skills-telemetry/releases/download"
 
 # Per-OS cache base (mirrors Go os.UserCacheDir).
 case "$(uname -s)" in

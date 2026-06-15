@@ -15,8 +15,9 @@ func resolveToken() string {
 	return resolveTokenFrom(os.Getenv("SKILLS_TELEMETRY_TOKEN"), dir)
 }
 
-// resolveTokenFrom is the testable core: env wins; otherwise read the secret
-// file under configDir. Surrounding whitespace/newlines are trimmed.
+// resolveTokenFrom is the testable core. Precedence: the env var, then the
+// provisioned env file (the single config file provision writes), then the
+// legacy standalone token file. Surrounding whitespace/newlines are trimmed.
 func resolveTokenFrom(env, configDir string) string {
 	if env != "" {
 		return env
@@ -24,7 +25,11 @@ func resolveTokenFrom(env, configDir string) string {
 	if configDir == "" {
 		return ""
 	}
-	b, err := os.ReadFile(filepath.Join(configDir, "qubership-skills-telemetry", "token"))
+	pkgDir := filepath.Join(configDir, pkgName)
+	if tok := loadEnvFile(filepath.Join(pkgDir, "env"))["SKILLS_TELEMETRY_TOKEN"]; tok != "" {
+		return tok
+	}
+	b, err := os.ReadFile(filepath.Join(pkgDir, "token"))
 	if err != nil {
 		return ""
 	}

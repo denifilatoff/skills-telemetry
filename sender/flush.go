@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"path/filepath"
 	"time"
@@ -32,9 +33,11 @@ func lockSpool(s *Spool) (release func(), busy error) {
 }
 
 // Flush sends every buffered event to the OTLP/HTTP endpoint and removes the
-// files that were sent. Returns the number of events sent.
-// Skips (0, nil) when: endpoint is empty, buffer empty, or the lock is held.
-func Flush(s *Spool, endpoint, token string, timeout time.Duration) (int, error) {
+// files that were sent. Returns the number of events sent. A non-nil tlsConfig
+// adds the provisioned CA to the transport; nil leaves TLS at its default
+// (system trust store). Skips (0, nil) when: endpoint is empty, buffer empty,
+// or the lock is held.
+func Flush(s *Spool, endpoint, token string, tlsConfig *tls.Config, timeout time.Duration) (int, error) {
 	if endpoint == "" {
 		return 0, nil
 	}
@@ -75,6 +78,9 @@ func Flush(s *Spool, endpoint, token string, timeout time.Duration) (int, error)
 	opts := []otlploghttp.Option{otlploghttp.WithEndpointURL(endpoint)}
 	if token != "" {
 		opts = append(opts, otlploghttp.WithHeaders(map[string]string{"Authorization": "Bearer " + token}))
+	}
+	if tlsConfig != nil {
+		opts = append(opts, otlploghttp.WithTLSClientConfig(tlsConfig))
 	}
 	exp, err := otlploghttp.New(ctx, opts...)
 	if err != nil {

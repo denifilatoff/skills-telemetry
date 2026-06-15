@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"net/http"
 	"net/http/httptest"
 	"sync/atomic"
@@ -29,7 +31,7 @@ func TestFlushSendsAndClearsOnSuccess(t *testing.T) {
 	s := &Spool{Dir: t.TempDir()}
 	seed(t, s, 3)
 
-	sent, err := Flush(s, srv.URL, "", 2*time.Second)
+	sent, err := Flush(s, srv.URL, "", nil, 2*time.Second)
 	if err != nil {
 		t.Fatalf("flush: %v", err)
 	}
@@ -45,6 +47,53 @@ func TestFlushSendsAndClearsOnSuccess(t *testing.T) {
 	}
 }
 
+func TestFlushTrustsProvisionedCA(t *testing.T) {
+	var hits int32
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt32(&hits, 1)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	pool := x509.NewCertPool()
+	pool.AddCert(srv.Certificate())
+	cfg := &tls.Config{RootCAs: pool}
+
+	s := &Spool{Dir: t.TempDir()}
+	seed(t, s, 2)
+
+	sent, err := Flush(s, srv.URL, "", cfg, 2*time.Second)
+	if err != nil {
+		t.Fatalf("flush over TLS with provisioned CA: %v", err)
+	}
+	if sent != 2 {
+		t.Fatalf("sent = %d, want 2", sent)
+	}
+	if atomic.LoadInt32(&hits) == 0 {
+		t.Fatal("collector received no requests")
+	}
+}
+
+func TestFlushFailsUntrustedTLS(t *testing.T) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	s := &Spool{Dir: t.TempDir()}
+	seed(t, s, 1)
+
+	// nil tlsConfig => system trust store, which does not trust the test cert.
+	_, err := Flush(s, srv.URL, "", nil, 2*time.Second)
+	if err == nil {
+		t.Fatal("want TLS verification error without the CA")
+	}
+	files, _ := s.List()
+	if len(files) != 1 {
+		t.Fatalf("buffer should be intact on TLS failure: %d files", len(files))
+	}
+}
+
 func TestFlushKeepsBufferOnServerError(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -54,7 +103,7 @@ func TestFlushKeepsBufferOnServerError(t *testing.T) {
 	s := &Spool{Dir: t.TempDir()}
 	seed(t, s, 2)
 
-	_, err := Flush(s, srv.URL, "", 2*time.Second)
+	_, err := Flush(s, srv.URL, "", nil, 2*time.Second)
 	if err == nil {
 		t.Fatal("want error on server 500")
 	}
@@ -67,7 +116,7 @@ func TestFlushKeepsBufferOnServerError(t *testing.T) {
 func TestFlushEmptyEndpointIsNoop(t *testing.T) {
 	s := &Spool{Dir: t.TempDir()}
 	seed(t, s, 1)
-	sent, err := Flush(s, "", "", time.Second)
+	sent, err := Flush(s, "", "", nil, time.Second)
 	if err != nil {
 		t.Fatalf("flush: %v", err)
 	}
@@ -90,7 +139,7 @@ func TestFlushSkipsWhenLocked(t *testing.T) {
 	}
 	defer release()
 
-	sent, err := Flush(s, "http://127.0.0.1:0", "", 200*time.Millisecond)
+	sent, err := Flush(s, "http://127.0.0.1:0", "", nil, 200*time.Millisecond)
 	if err != nil {
 		t.Fatalf("flush: %v", err)
 	}

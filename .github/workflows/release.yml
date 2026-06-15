@@ -78,10 +78,20 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           path: dist
           merge-multiple: true
+      - name: Stage bootstrap scripts
+        # Publish the launchers as release assets so the provisioning one-liner
+        # has a stable URL: releases/latest/download/bootstrap.sh. Stamp the
+        # release tag into BINARY_VERSION so each release's launcher pins its own
+        # binary — it cannot lag behind a hardcoded value.
+        run: |
+          src=agent-packages/qubership-skills-telemetry/.apm/hooks/scripts
+          sed "s|^BINARY_VERSION=.*|BINARY_VERSION=\"${VERSION}\"|" "$src/bootstrap.sh" > dist/bootstrap.sh
+          sed "s|^\$BinaryVersion = .*|\$BinaryVersion = '${VERSION}'|" "$src/bootstrap.ps1" > dist/bootstrap.ps1
       - name: Checksums
         working-directory: dist
         run: sha256sum skills-telemetry-* > SHA256SUMS

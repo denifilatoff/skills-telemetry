@@ -8,16 +8,19 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"golang.org/x/term"
 )
 
 // version is overridden at build time via -ldflags "-X main.version=...".
 var version = "dev"
 
 const (
-	bufferCap      = 100
-	flushCountN    = 10
-	flushIntervalT = 60 * time.Second
-	flushTimeout   = 2 * time.Second
+	bufferCap       = 100
+	flushCountN     = 10
+	flushIntervalT  = 60 * time.Second
+	flushTimeout    = 2 * time.Second
+	selftestTimeout = 10 * time.Second
 )
 
 func main() {
@@ -26,12 +29,52 @@ func main() {
 
 func run(args []string, stdout func(string)) int {
 	if len(args) == 0 {
-		stdout("usage: skills-telemetry <ingest|flush|status|version>\n")
+		stdout("usage: skills-telemetry <ingest|flush|status|selftest|provision|version>\n")
 		return 2
 	}
 	switch args[0] {
 	case "version":
 		stdout(version + "\n")
+		return 0
+	case "provision":
+		endpoint, caPath := parseProvisionFlags(args[1:])
+		cfg := pkgConfigDir()
+		if cfg == "" {
+			fmt.Fprintln(os.Stderr, "provision: no user config directory available")
+			return 1
+		}
+		token := readSecret("Collector token (leave blank to skip): ")
+		if err := applyProvision(cfg, endpoint, caPath, token); err != nil {
+			fmt.Fprintln(os.Stderr, "provision:", err)
+			return 1
+		}
+		s, err := DefaultSpool()
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "spool:", err)
+			return 1
+		}
+		stdout(formatStatus(gatherStatus(s, cfg, resolveEndpoint(""))))
+		return 0
+	case "selftest":
+		s, err := DefaultSpool()
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "spool:", err)
+			return 1
+		}
+		tlsCfg, cerr := caTLSConfig(pkgConfigDir())
+		if cerr != nil {
+			fmt.Fprintln(os.Stderr, "ca:", cerr)
+		}
+		res, err := runSelftest(s, resolveEndpoint(""), resolveToken(), tlsCfg, selftestTimeout)
+		if err != nil {
+			stdout("selftest: failed — " + err.Error() + "\n")
+			return 1
+		}
+		if !res.Delivered {
+			stdout("selftest: probe not confirmed (try again)\n")
+			return 1
+		}
+		stdout("selftest: ok — probe accepted by the collector and cleared from the spool\n")
 		return 0
 	case "ingest":
 		agent, endpoint := parseFlags(args[1:])
@@ -51,7 +94,11 @@ func run(args []string, stdout func(string)) int {
 			fmt.Fprintln(os.Stderr, "spool:", err)
 			return 0
 		}
-		if _, err := Flush(s, endpoint, resolveToken(), flushTimeout); err != nil {
+		tlsCfg, err := caTLSConfig(pkgConfigDir())
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "ca:", err)
+		}
+		if _, err := Flush(s, endpoint, resolveToken(), tlsCfg, flushTimeout); err != nil {
 			fmt.Fprintln(os.Stderr, "flush:", err)
 		}
 		return 0
@@ -61,15 +108,7 @@ func run(args []string, stdout func(string)) int {
 			fmt.Fprintln(os.Stderr, "spool:", err)
 			return 0
 		}
-		names, err := s.List()
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "list:", err)
-		}
-		last := "never"
-		if fi, err := os.Stat(filepath.Join(s.Dir, markerName)); err == nil {
-			last = fi.ModTime().UTC().Format(time.RFC3339)
-		}
-		stdout(fmt.Sprintf("spool: %s\nbuffered: %d\nlast_flush_attempt: %s\n", s.Dir, len(names), last))
+		stdout(formatStatus(gatherStatus(s, pkgConfigDir(), resolveEndpoint(""))))
 		return 0
 	default:
 		stdout("unknown command: " + args[0] + "\n")
@@ -90,6 +129,45 @@ func parseFlags(args []string) (agent, endpoint string) {
 	return agent, endpoint
 }
 
+// parseProvisionFlags reads the provisioning flags: --endpoint= and --ca=.
+func parseProvisionFlags(args []string) (endpoint, ca string) {
+	for _, a := range args {
+		switch {
+		case strings.HasPrefix(a, "--endpoint="):
+			endpoint = strings.TrimPrefix(a, "--endpoint=")
+		case strings.HasPrefix(a, "--ca="):
+			ca = strings.TrimPrefix(a, "--ca=")
+		}
+	}
+	return endpoint, ca
+}
+
+// readSecret prompts on stderr and reads a line without echoing it, so the
+// token never lands in a terminal scrollback. It prefers the controlling
+// terminal (/dev/tty) so it still works under `curl | sh`, where stdin is the
+// pipe; it falls back to stdin when stdin is itself a terminal (e.g. the
+// Windows console). Returns "" if no terminal is available.
+func readSecret(prompt string) string {
+	fmt.Fprint(os.Stderr, prompt)
+	if tty, err := os.OpenFile("/dev/tty", os.O_RDWR, 0); err == nil {
+		defer tty.Close()
+		b, rerr := term.ReadPassword(int(tty.Fd()))
+		fmt.Fprintln(os.Stderr)
+		if rerr == nil {
+			return strings.TrimSpace(string(b))
+		}
+	}
+	if term.IsTerminal(int(os.Stdin.Fd())) {
+		b, rerr := term.ReadPassword(int(os.Stdin.Fd()))
+		fmt.Fprintln(os.Stderr)
+		if rerr == nil {
+			return strings.TrimSpace(string(b))
+		}
+	}
+	fmt.Fprintln(os.Stderr)
+	return ""
+}
+
 // ingest is the per-event path: parse, enqueue, rotate, opportunistic flush.
 // It returns 0 even on error — a hook must never fail the agent turn.
 func ingest(s *Spool, agent, endpoint string, stdin []byte, remote remoteResolver) int {
@@ -108,7 +186,11 @@ func ingest(s *Spool, agent, endpoint string, stdin []byte, remote remoteResolve
 	}
 	if shouldFlush(s, flushCountN, flushIntervalT) {
 		touchMarker(s)
-		if _, err := Flush(s, endpoint, resolveToken(), flushTimeout); err != nil {
+		tlsCfg, cerr := caTLSConfig(pkgConfigDir())
+		if cerr != nil {
+			fmt.Fprintln(os.Stderr, "ca:", cerr)
+		}
+		if _, err := Flush(s, endpoint, resolveToken(), tlsCfg, flushTimeout); err != nil {
 			fmt.Fprintln(os.Stderr, "flush:", err)
 		}
 	}

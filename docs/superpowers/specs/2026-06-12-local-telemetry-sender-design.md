@@ -25,6 +25,7 @@ VictoriaLogs, Grafana) are infrastructure and are not designed here.
 | Concurrency | Writers never share a file (atomic temp + rename); flush is serialized by a single lock file |
 | What leaves the machine | A normalized OTLP event (logs), not raw input; metrics are derived at the collector |
 | Collector address | A `--endpoint=` flag in the hook registration template; visible in the hook text, set by the package, not user-configurable |
+| Transport security | TLS required: the sender sends only over `https://`, never plaintext. CA trust is hybrid — an optional CA file takes precedence, else the system trust store; if neither validates the collector, the send fails rather than downgrading |
 
 ## Why Go
 
@@ -177,6 +178,119 @@ The concrete host value is an infrastructure concern and is not chosen here (sco
 The protocol is OTLP/HTTP (simpler for a short-lived CLI and friendlier to gateways and
 proxies than gRPC). The access token is supplied separately (see "Open questions"), not
 through this flag.
+
+Update: the endpoint is no longer a hook flag. It is delivered per machine through the
+provisioned config file as `SKILLS_TELEMETRY_ENDPOINT`, mirroring the token. The hook command
+carries no endpoint. See "Provisioning".
+
+## Transport security
+
+The sender never emits telemetry over plaintext. The endpoint is always `https://`, and
+the sender does not set `OTEL_EXPORTER_OTLP_INSECURE` or skip certificate verification. If
+the collector cannot be reached over TLS, the send fails and the event stays in the spool —
+it is not downgraded to cleartext, so the access token and the event never travel unencrypted.
+
+CA trust is hybrid, resolved in the sender's own code:
+
+1. If a CA certificate exists at the well-known path `<config>/ca.crt`, the sender adds it to
+   the system trust pool (`x509.SystemCertPool` + `AppendCertsFromPEM`) and passes the combined
+   pool through `otlploghttp.WithTLSClientConfig`.
+2. Otherwise the sender uses the system trust store alone.
+3. If neither validates the collector's certificate, the send fails.
+
+The CA file is therefore optional, and trust is additive — the machine keeps trusting public
+and corporate roots and adds the private CA on top. A deployment whose collector presents a
+publicly trusted certificate, or one signed by a corporate CA already in the machine's trust
+store (for example pushed through MDM), needs no CA file at all. The CA file stays for local
+development against a self-signed collector, and for any deployment that does not issue a
+trusted certificate.
+
+## Provisioning
+
+The sender needs three things per machine that cannot ship in the public package because they
+are deployment-specific or secret: the collector endpoint, the access token, and — for a
+self-signed collector — the CA certificate. A `provision` step sets them once per machine,
+separate from the per-repository `apm install`.
+
+### Mechanic
+
+The deterministic core is `provision`, a subcommand of the sender binary
+(`skills-telemetry provision`). It performs the security-sensitive work — atomic writes of the
+`env` file and `ca.crt` with the right permissions, validation, and idempotency — and reads the
+token with no echo (`golang.org/x/term`) so the secret never reaches a terminal scrollback or a
+caller's context. There is no parallel `provision.sh` / `provision.ps1` to keep in sync.
+
+Two front-ends produce the same files through that core:
+
+1. **A provisioning skill (primary, agent-driven).** Because the project already runs inside a
+   skill-capable harness, a provisioning skill orchestrates onboarding in natural language: it
+   discovers the endpoint, extracts or locates the CA, asks the user for anything missing, calls
+   `skills-telemetry provision` for the actual writes, and finishes with `skills-telemetry
+   status` to verify. The model handles discovery and interaction; the binary handles the
+   correct write and the verification. The token is the exception — the skill defers it to the
+   binary's no-echo prompt, so it does not pass through the model's context.
+2. **A `curl | sh` one-liner (headless / CI).** For non-agent contexts, a one-liner reuses
+   `bootstrap.sh` as the binary fetcher so provisioning does not wait for the first skill event:
+
+   ```
+   # macOS / Linux
+   curl -fsSL <url>/bootstrap.sh | sh -s -- provision
+   # Windows
+   iex "& { $(irm <url>/bootstrap.ps1) } provision"
+   ```
+
+   `bootstrap` ensures the binary is in the cache (the same logic and pinned version it uses for
+   events, so both share one cache entry) and runs `skills-telemetry provision`. Because stdin
+   is the curl pipe, the subcommand reads its prompts from the controlling terminal (`/dev/tty`
+   on Unix, the console on Windows). It also accepts flags for fully non-interactive runs.
+
+### The CA certificate
+
+The sender locates the CA by auto-discovery: it loads `<config>/ca.crt` if the file exists and
+adds it to the system trust pool (see "Transport security"). Provisioning therefore only has to
+place that file. `provision` takes a local path and copies the certificate to the canonical
+`<config>/ca.crt`; it does not fetch the certificate itself.
+
+Where the source file comes from depends on the deployment, not on `provision`:
+
+- A publicly trusted certificate, or a corporate CA already in the system trust store (for
+  example via MDM), needs no file at all — auto-discovery finds nothing and the system store
+  validates the collector.
+- A corporate CA that is not in the trust store is downloaded by the user from the internal
+  distribution point, then passed to `provision`.
+- The local self-signed stand's CA is extracted from the cluster with a documented command; the
+  provisioning skill can run that extraction. `provision` stays deployment-agnostic and only
+  copies the resulting file.
+
+### File layout
+
+The split already in the code is kept: disposable data in the cache, durable data in the config
+directory.
+
+| Data | Location | Lifetime |
+|---|---|---|
+| Binary, spool | `os.UserCacheDir()/qubership-skills-telemetry/` | Disposable — re-fetched or rebuilt |
+| `env` (endpoint, token), CA certificate, `machine.id` | `os.UserConfigDir()/qubership-skills-telemetry/` | Durable — survives a cache wipe |
+
+The config directory resolves to `~/Library/Application Support/qubership-skills-telemetry/` on
+macOS, `~/.config/qubership-skills-telemetry/` on Linux, and
+`%AppData%\qubership-skills-telemetry\` on Windows. Provisioning state must not live in the
+cache: the cache is disposable by design — the binary is there because it re-downloads — and
+macOS purges `~/Library/Caches` under disk pressure, which would silently drop the token and
+endpoint and stop telemetry.
+
+The config file is `KEY=VALUE`, parsed (not sourced) by both bootstraps so the format is
+identical on every OS: `bootstrap.sh` reads and exports each line, `bootstrap.ps1` sets the
+matching `$env:` variables.
+
+### Order and discoverability
+
+Provisioning (once per machine) and `apm install` / `apm compile` (per repository) are
+independent. Either order works: an unprovisioned send is a no-op (the endpoint is empty) and
+the event waits in the spool. The onboarding document lists provisioning — the skill, or the
+one-liner for headless contexts — as step 1 and `apm install` / `apm compile` as step 2.
+`skills-telemetry status` reports whether the machine is provisioned and prints the next step
+when it is not.
 
 ## Build and release
 

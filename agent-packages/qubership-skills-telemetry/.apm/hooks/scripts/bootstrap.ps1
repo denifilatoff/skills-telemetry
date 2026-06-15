@@ -2,8 +2,10 @@
 # forwarding all args and stdin. Windows PowerShell 5.1 built-ins only.
 $ErrorActionPreference = 'Stop'
 
-$BinaryVersion = '0.1.0'
-$BaseUrl = 'https://REPLACE_ME/skills-telemetry'  # set by release
+# BinaryVersion is the release tag; BaseUrl/<tag>/<asset> is the GitHub
+# Releases download layout, so the URL below resolves to a real asset.
+$BinaryVersion = 'v0.1.1'
+$BaseUrl = 'https://github.com/denifilatoff/skills-telemetry/releases/download'
 
 $cacheBase = $env:LOCALAPPDATA
 $arch = if ([Environment]::Is64BitOperatingSystem) { 'amd64' } else { 'amd64' }

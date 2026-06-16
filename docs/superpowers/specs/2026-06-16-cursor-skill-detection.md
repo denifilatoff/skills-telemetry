@@ -101,11 +101,37 @@ New: a `cursorAdapter` in `adapter.go` that decodes the `afterAgentResponse` pay
 merges the marker events with the transcript events for `agent == "cursor"`; and the
 `afterAgentResponse` hook filled into `skill-call-cursor-hooks.json`.
 
+## APM Cursor target — resolved
+
+Confirmed against apm-cli 0.14.1 (`integration/hook_integrator.py`):
+
+- **Routing.** A hook file whose stem ends in `-cursor-hooks` is routed to the `cursor` target, so
+  `skill-call-cursor-hooks.json` is picked up, the same convention as Codex and Claude.
+- **Native format.** Cursor hooks use the flat shape `{"hooks": {"<event>": [{"command": "..."}]}}`,
+  not the nested `{"hooks": [{"type": "command", ...}]}` wrapper Claude and Codex use. The source
+  file is authored in that flat shape. `afterAgentResponse` is passed through verbatim (no event-name
+  remapping for the `cursor` target).
+- **Merge target.** APM merges the hook into `<root>/.cursor/hooks.json` under the `hooks` key and
+  tags each entry with `_apm_source` for clean sync and uninstall. The `./scripts/bootstrap.sh`
+  reference is copied to `.cursor/hooks/<pkg>/scripts/` and rewritten to an absolute path, as for the
+  other harnesses.
+- **`require_dir`.** APM writes `.cursor/hooks.json` only when `.cursor/` already exists. Any repo
+  that uses Cursor skills has `.cursor/skills/`, so the directory is present in practice; INSTALL.md
+  notes it.
+
+Two points still need a live check (Task 7 of the plan):
+
+- **`version: 1`.** APM does not inject the top-level `version` key when it creates a fresh
+  `.cursor/hooks.json` — it only writes the `hooks` key (and preserves a `version` already in an
+  existing file). The source hook file carries `version: 1` so a direct copy stays valid, but an
+  APM-generated file may lack it. Confirm whether Cursor honors a `hooks.json` without `version`; if
+  not, the fallback is to seed `.cursor/hooks.json` with `version: 1` (the source file doubles as that
+  seed).
+- **`_apm_source` key.** Confirm Cursor ignores the extra `_apm_source` field APM adds to each entry,
+  rather than rejecting the file.
+
 ## Open questions
 
-- **APM Cursor target.** Confirm that `apm install --target cursor` deploys
-  `skill-call-cursor-hooks.json` to `<root>/.cursor/hooks.json` by the same naming convention used
-  for Codex and Claude. The package has the hook file but no Cursor target has been exercised.
 - **Cloud agents.** Cursor loads project hooks for cloud-agent runs too. Whether the bootstrap and
   provisioning model work in that environment is untested and out of scope for the first slice.
 

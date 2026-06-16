@@ -55,3 +55,12 @@ func TestScanCursorTranscriptSkipsMalformedLine(t *testing.T) {
 		t.Fatalf("skills = %v", skills)
 	}
 }
+
+func TestScanCursorTranscriptManualAttachMultiple(t *testing.T) {
+	line := `{"role":"user","message":{"content":[{"type":"text","text":` +
+		`"<manually_attached_skills>\nSkill Name: alpha\nPath: /a\nSkill Name: beta\nPath: /b\n"}]}}` + "\n"
+	skills, _ := scanCursorTranscript(strings.NewReader(line), 0)
+	if len(skills) != 2 || skills[0] != "alpha" || skills[1] != "beta" {
+		t.Fatalf("skills = %v", skills)
+	}
+}

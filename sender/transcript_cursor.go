@@ -71,7 +71,7 @@ func processCursorLine(line string, skills *[]string, seen map[string]bool) {
 			if c.Name != "Read" {
 				continue
 			}
-			for _, m := range cursorSkillReadRe.FindAllStringSubmatch(c.Input.Path, -1) {
+			if m := cursorSkillReadRe.FindStringSubmatch(c.Input.Path); m != nil {
 				add(m[1])
 			}
 		case "text":

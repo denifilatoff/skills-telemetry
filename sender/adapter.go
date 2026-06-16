@@ -27,12 +27,16 @@ func Dispatch(agent string, stdin []byte, remote remoteResolver) ([]SkillEvent, 
 	return a(stdin, remote, time.Now().UTC())
 }
 
-var breadcrumbRe = regexp.MustCompile(`(?m)^\[skill-called\]\s+skill=(\S+)\s+source=(\S+)\s*$`)
+var markerRe = regexp.MustCompile(`(?m)^\[skill-called\]\s+skill=(\S+)\s+source=(\S+)\s*$`)
 
 type codexPayload struct {
 	SessionID            string `json:"session_id"`
 	Cwd                  string `json:"cwd"`
 	LastAssistantMessage string `json:"last_assistant_message"`
+	// TranscriptPath is the rollout file Codex passes to the Stop hook. The
+	// transcript adapter parses it for SKILL.md reads; the marker adapter
+	// ignores it. No glob by session id is needed.
+	TranscriptPath string `json:"transcript_path"`
 }
 
 func codexAdapter(stdin []byte, remote remoteResolver, now time.Time) ([]SkillEvent, error) {
@@ -42,7 +46,7 @@ func codexAdapter(stdin []byte, remote remoteResolver, now time.Time) ([]SkillEv
 		// must never fail the hook.
 		_ = json.Unmarshal(stdin, &p)
 	}
-	matches := breadcrumbRe.FindAllStringSubmatch(p.LastAssistantMessage, -1)
+	matches := markerRe.FindAllStringSubmatch(p.LastAssistantMessage, -1)
 	if len(matches) == 0 {
 		return nil, nil
 	}

@@ -11,7 +11,7 @@ set -eu
 
 # BINARY_VERSION is the release tag; BASE_URL/<tag>/<asset> is the GitHub
 # Releases download layout, so the URL below resolves to a real asset.
-BINARY_VERSION="v0.2.0"
+BINARY_VERSION="v0.3.0"
 BASE_URL="https://github.com/denifilatoff/skills-telemetry/releases/download"
 
 CMD="${1:-}"

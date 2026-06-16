@@ -98,7 +98,7 @@ Each option follows the same structure: name, the idea, blockers, who it works f
 
 ---
 
-## 7. A visible breadcrumb caught by a hook
+## 7. A visible marker caught by a hook
 
 **The idea.** The skill prints a visible marker in its response (a strict, rare signal) to say it has activated; a separate interceptor in the settings layer catches that text and reports it. Without the interceptor, the marker stays harmless visible text and goes nowhere.
 
@@ -186,12 +186,12 @@ Below is where the sender takes each event field from, broken down by agent. The
 | `agent.version` | not in the input; via `claude --version` or the environment | not in the input; via `codex --version` | in the input: `cursor_version` (optional) | via `opencode --version` or the programmatic interface |
 | `session.id` | `session_id` in the input | `session_id` in the input (`turn_id` is available but not emitted) | `conversation_id` (+ `generation_id`) in the input | `sessionID` in the hook input |
 | `repo` | from `cwd` → root and remote repository URL via git | from `cwd` → git (Codex also finds the root by `.git` itself) | from `workspace_roots` (the root is already given) → git | from `directory` / `worktree` in the plugin context → git |
-| `skill.name` | **yes**: `command_name` (command expansion) or `tool_input` on the Skill tool (before the tool call) | **not in the hook** (a skill is not a tool; hooks are Bash-only) → breadcrumb or session reading | **not in the hook** (a skill is not a tool) → breadcrumb (`afterAgentResponse.text`) or session reading | **yes**: the skill-activation tool call (for example `use_skill`), name in `args` — when skills are managed through the compatibility extension |
-| `skill.version` | **not in the input** → match the name against the package-manager manifest, or take it from the breadcrumb | **not in the hook** → the breadcrumb carries the version, or the manifest (if the name is sourced some other way) | **not in the hook** → the breadcrumb carries the version, or the manifest | **not in `args`** → the manifest by name, or from the breadcrumb |
+| `skill.name` | **yes**: `command_name` (command expansion) or `tool_input` on the Skill tool (before the tool call) | **not in the hook** (a skill is not a tool; hooks are Bash-only) → marker or session reading | **not in the hook** (a skill is not a tool) → marker (`afterAgentResponse.text`) or session reading | **yes**: the skill-activation tool call (for example `use_skill`), name in `args` — when skills are managed through the compatibility extension |
+| `skill.version` | **not in the input** → match the name against the package-manager manifest, or take it from the marker | **not in the hook** → the marker carries the version, or the manifest (if the name is sourced some other way) | **not in the hook** → the marker carries the version, or the manifest | **not in `args`** → the manifest by name, or from the marker |
 
 Two asymmetries to keep in mind:
-- The skill name comes from the event itself only on Claude Code and OpenCode. Codex and Cursor have no skill-activation event, so the name is sourced only from the visible breadcrumb or from reading the session records.
-- The skill version does not come in the event on any of them. It is supplied either by matching the name against the package-manager manifest or by the visible breadcrumb (which carries both name and version at once — the only way without a manifest, and the only source of anything at all on Codex and Cursor).
+- The skill name comes from the event itself only on Claude Code and OpenCode. Codex and Cursor have no skill-activation event, so the name is sourced only from the visible marker or from reading the session records.
+- The skill version does not come in the event on any of them. It is supplied either by matching the name against the package-manager manifest or by the visible marker (which carries both name and version at once — the only way without a manifest, and the only source of anything at all on Codex and Cursor).
 
 ### Spec links to verify (by agent)
 

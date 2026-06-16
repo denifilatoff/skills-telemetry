@@ -53,6 +53,62 @@ func TestCodexAdapterUsesRemoteResolver(t *testing.T) {
 	}
 }
 
+func TestClaudeAdapterParsesSkillTool(t *testing.T) {
+	stdin := []byte(`{
+		"session_id": "6a35f862",
+		"transcript_path": "/Users/x/.claude/projects/p/6a35f862.jsonl",
+		"cwd": "/repo",
+		"hook_event_name": "PreToolUse",
+		"tool_name": "Skill",
+		"tool_input": {"skill": "superpowers:brainstorming", "args": "..."},
+		"tool_use_id": "toolu_01"
+	}`)
+	events, err := Dispatch("claude", stdin, func(cwd string) string {
+		if cwd != "/repo" {
+			t.Fatalf("resolver got cwd %q", cwd)
+		}
+		return "git@host:org/repo.git"
+	})
+	if err != nil {
+		t.Fatalf("dispatch: %v", err)
+	}
+	if len(events) != 1 {
+		t.Fatalf("got %d events, want 1", len(events))
+	}
+	e := events[0]
+	if e.Agent != "claude" || e.SessionID != "6a35f862" || e.Skill != "superpowers:brainstorming" {
+		t.Fatalf("event = %+v", e)
+	}
+	if e.RepoRemote != "git@host:org/repo.git" {
+		t.Fatalf("remote = %q", e.RepoRemote)
+	}
+	// Source is not recoverable from the native event; it stays empty.
+	if e.Source != "" {
+		t.Fatalf("source = %q, want empty", e.Source)
+	}
+}
+
+func TestClaudeAdapterIgnoresOtherTools(t *testing.T) {
+	stdin := []byte(`{"tool_name":"Bash","tool_input":{"command":"ls"}}`)
+	events, err := Dispatch("claude", stdin, func(string) string { return "" })
+	if err != nil {
+		t.Fatalf("dispatch: %v", err)
+	}
+	if len(events) != 0 {
+		t.Fatalf("got %d events, want 0", len(events))
+	}
+}
+
+func TestClaudeAdapterMalformedJSON(t *testing.T) {
+	events, err := Dispatch("claude", []byte(`{not json`), func(string) string { return "" })
+	if err != nil {
+		t.Fatalf("dispatch: %v", err)
+	}
+	if len(events) != 0 {
+		t.Fatalf("got %d events, want 0", len(events))
+	}
+}
+
 func TestDispatchUnknownAgent(t *testing.T) {
 	if _, err := Dispatch("nope", []byte(`{}`), func(string) string { return "" }); err == nil {
 		t.Fatal("want error for unknown agent")

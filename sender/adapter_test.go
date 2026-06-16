@@ -160,3 +160,24 @@ func TestCursorAdapterMalformedJSON(t *testing.T) {
 		t.Fatalf("got %d events, want 0", len(events))
 	}
 }
+
+func TestCursorAdapterParsesMultipleMarkers(t *testing.T) {
+	stdin := []byte(`{
+		"session_id": "c2",
+		"text": "done.\n[skill-called] skill=ops:deploy source=Netcracker/x\n[skill-called] skill=english-developer-style source=Netcracker/x\n",
+		"workspace_roots": ["/repo"]
+	}`)
+	events, err := Dispatch("cursor", stdin, func(string) string { return "" })
+	if err != nil {
+		t.Fatalf("dispatch: %v", err)
+	}
+	if len(events) != 2 {
+		t.Fatalf("got %d events, want 2", len(events))
+	}
+	if events[0].Agent != "cursor" || events[0].Skill != "ops:deploy" {
+		t.Fatalf("event[0] = %+v", events[0])
+	}
+	if events[1].Agent != "cursor" || events[1].Skill != "english-developer-style" {
+		t.Fatalf("event[1] = %+v", events[1])
+	}
+}

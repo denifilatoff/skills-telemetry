@@ -3,9 +3,12 @@ package main
 import (
 	"bufio"
 	"encoding/json"
+	"fmt"
 	"io"
+	"os"
 	"regexp"
 	"strings"
+	"time"
 )
 
 // cursorSkillReadRe matches the Read tool input.path of a skill body. The path
@@ -83,4 +86,72 @@ func processCursorLine(line string, skills *[]string, seen map[string]bool) {
 			}
 		}
 	}
+}
+
+// cursorTranscriptEvents reads the transcript named by transcript_path and
+// returns one event per skill read since the last run. It never fails the
+// caller: any problem yields zero events. When offsets is non-nil and the
+// payload carries a session id, only reads beyond the stored byte offset are
+// emitted, and the offset advances to the end of the file. The remote is
+// resolved from workspace_roots, since the transcript carries no git data.
+func cursorTranscriptEvents(stdin []byte, offsets *OffsetStore, remote remoteResolver, now time.Time) []SkillEvent {
+	var p cursorPayload
+	if len(stdin) > 0 {
+		_ = json.Unmarshal(stdin, &p)
+	}
+	if p.TranscriptPath == "" {
+		return nil
+	}
+	f, err := os.Open(p.TranscriptPath)
+	if err != nil {
+		return nil
+	}
+	defer f.Close()
+
+	var offset int64
+	key := "cursor:" + p.SessionID
+	useOffset := offsets != nil && p.SessionID != ""
+	if useOffset {
+		offset = offsets.Load(key)
+		if fi, serr := f.Stat(); serr == nil && offset > fi.Size() {
+			offset = 0 // file rotated or truncated since the last run
+		}
+	}
+
+	skills, end := scanCursorTranscript(f, offset)
+
+	if useOffset {
+		_ = offsets.Save(key, end)
+	}
+
+	rem := cursorRemote(p, remote)
+	events := make([]SkillEvent, 0, len(skills))
+	for _, name := range skills {
+		events = append(events, SkillEvent{
+			Agent:      "cursor",
+			SessionID:  p.SessionID,
+			RepoRemote: rem,
+			Skill:      name,
+			TS:         now,
+		})
+	}
+	return events
+}
+
+// cursorTranscriptEventsAuto wires cursorTranscriptEvents to the default offset
+// store. It skips building the store unless the payload names a transcript.
+func cursorTranscriptEventsAuto(stdin []byte, remote remoteResolver, now time.Time) []SkillEvent {
+	var p cursorPayload
+	if len(stdin) > 0 {
+		_ = json.Unmarshal(stdin, &p)
+	}
+	if p.TranscriptPath == "" {
+		return nil
+	}
+	store, err := DefaultOffsetStore()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "offset:", err)
+		store = nil
+	}
+	return cursorTranscriptEvents(stdin, store, remote, now)
 }

@@ -1,9 +1,14 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
+
+var fixedTime = time.Date(2026, 6, 16, 12, 0, 0, 0, time.UTC)
 
 func TestScanCursorTranscriptReadToolUse(t *testing.T) {
 	line := `{"role":"assistant","message":{"content":[` +
@@ -62,5 +67,57 @@ func TestScanCursorTranscriptManualAttachMultiple(t *testing.T) {
 	skills, _ := scanCursorTranscript(strings.NewReader(line), 0)
 	if len(skills) != 2 || skills[0] != "alpha" || skills[1] != "beta" {
 		t.Fatalf("skills = %v", skills)
+	}
+}
+
+func TestCursorTranscriptEventsReadsFileAndResolvesRemote(t *testing.T) {
+	dir := t.TempDir()
+	tp := filepath.Join(dir, "t.jsonl")
+	body := `{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Read","input":{"path":"/repo/.cursor/skills/adr-authoring/SKILL.md"}}]}}` + "\n"
+	if err := os.WriteFile(tp, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	stdin := []byte(`{"session_id":"c1","workspace_roots":["/repo"],"transcript_path":"` + tp + `"}`)
+	events := cursorTranscriptEvents(stdin, nil, func(string) string { return "git@host:org/repo.git" }, fixedTime)
+	if len(events) != 1 {
+		t.Fatalf("got %d events, want 1", len(events))
+	}
+	e := events[0]
+	if e.Agent != "cursor" || e.SessionID != "c1" || e.Skill != "adr-authoring" ||
+		e.RepoRemote != "git@host:org/repo.git" || e.Source != "" {
+		t.Fatalf("event = %+v", e)
+	}
+}
+
+func TestCursorTranscriptEventsNoPath(t *testing.T) {
+	events := cursorTranscriptEvents([]byte(`{"session_id":"c1"}`), nil, func(string) string { return "" }, fixedTime)
+	if events != nil {
+		t.Fatalf("want nil, got %v", events)
+	}
+}
+
+func TestCursorTranscriptEventsHonorsOffset(t *testing.T) {
+	dir := t.TempDir()
+	tp := filepath.Join(dir, "t.jsonl")
+	first := `{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Read","input":{"path":"/repo/.cursor/skills/old/SKILL.md"}}]}}` + "\n"
+	if err := os.WriteFile(tp, []byte(first), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	store := &OffsetStore{Dir: t.TempDir()}
+	stdin := []byte(`{"session_id":"c1","workspace_roots":["/repo"],"transcript_path":"` + tp + `"}`)
+
+	first1 := cursorTranscriptEvents(stdin, store, func(string) string { return "" }, fixedTime)
+	if len(first1) != 1 || first1[0].Skill != "old" {
+		t.Fatalf("first pass = %v", first1)
+	}
+	if again := cursorTranscriptEvents(stdin, store, func(string) string { return "" }, fixedTime); len(again) != 0 {
+		t.Fatalf("second pass = %v, want 0", again)
+	}
+	f, _ := os.OpenFile(tp, os.O_APPEND|os.O_WRONLY, 0o600)
+	f.WriteString(`{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Read","input":{"path":"/repo/.cursor/skills/new/SKILL.md"}}]}}` + "\n")
+	f.Close()
+	third := cursorTranscriptEvents(stdin, store, func(string) string { return "" }, fixedTime)
+	if len(third) != 1 || third[0].Skill != "new" {
+		t.Fatalf("third pass = %v", third)
 	}
 }

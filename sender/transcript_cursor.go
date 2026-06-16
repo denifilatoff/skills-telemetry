@@ -78,6 +78,11 @@ func processCursorLine(line string, skills *[]string, seen map[string]bool) {
 				add(m[1])
 			}
 		case "text":
+			// Block-presence-gated, not block-bounded: once the manual-attach
+			// block is present, the regex scans the whole text, so a stray
+			// "Skill Name:" line elsewhere in the same message would also match.
+			// The cost is a spurious name, never a failure, and the block is the
+			// only realistic source of that line.
 			if !strings.Contains(c.Text, "<manually_attached_skills>") {
 				continue
 			}

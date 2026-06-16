@@ -15,7 +15,8 @@ type remoteResolver func(cwd string) string
 type Adapter func(stdin []byte, remote remoteResolver, now time.Time) ([]SkillEvent, error)
 
 var adapters = map[string]Adapter{
-	"codex": codexAdapter,
+	"codex":  codexAdapter,
+	"claude": claudeAdapter,
 }
 
 // Dispatch routes raw stdin to the adapter for the named agent.
@@ -37,6 +38,51 @@ type codexPayload struct {
 	// transcript adapter parses it for SKILL.md reads; the marker adapter
 	// ignores it. No glob by session id is needed.
 	TranscriptPath string `json:"transcript_path"`
+}
+
+// claudePayload is the Claude Code PreToolUse hook envelope. Only the fields
+// the adapter needs are decoded; the rest (permission_mode, effort,
+// tool_use_id, transcript_path) are ignored.
+type claudePayload struct {
+	SessionID string `json:"session_id"`
+	Cwd       string `json:"cwd"`
+	ToolName  string `json:"tool_name"`
+	ToolInput struct {
+		Skill string `json:"skill"`
+	} `json:"tool_input"`
+}
+
+// claudeAdapter turns a Claude Code PreToolUse hook payload into a single
+// SkillEvent. The hook is registered on the Skill tool, so it fires once per
+// skill activation; tool_input.skill is the skill name (namespace-prefixed for
+// plugin skills, bare for project skills). The native event carries no source,
+// so SkillEvent.Source is left empty — the same limitation as Codex transcript
+// parsing.
+func claudeAdapter(stdin []byte, remote remoteResolver, now time.Time) ([]SkillEvent, error) {
+	var p claudePayload
+	if len(stdin) > 0 {
+		// Malformed JSON yields no events rather than an error: a broken turn
+		// must never fail the hook.
+		_ = json.Unmarshal(stdin, &p)
+	}
+	// Defensive: the matcher already scopes the hook to the Skill tool, but
+	// only emit when the payload confirms it and names a skill.
+	if p.ToolName != "Skill" || p.ToolInput.Skill == "" {
+		return nil, nil
+	}
+	// p.Cwd resolves the git remote only; the local path never leaves the
+	// process, since it leaks the user's home directory and username.
+	var rem string
+	if remote != nil && p.Cwd != "" {
+		rem = remote(p.Cwd)
+	}
+	return []SkillEvent{{
+		Agent:      "claude",
+		SessionID:  p.SessionID,
+		RepoRemote: rem,
+		Skill:      p.ToolInput.Skill,
+		TS:         now,
+	}}, nil
 }
 
 func codexAdapter(stdin []byte, remote remoteResolver, now time.Time) ([]SkillEvent, error) {

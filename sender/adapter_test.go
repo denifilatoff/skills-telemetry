@@ -114,3 +114,49 @@ func TestDispatchUnknownAgent(t *testing.T) {
 		t.Fatal("want error for unknown agent")
 	}
 }
+
+func TestCursorAdapterParsesMarker(t *testing.T) {
+	stdin := []byte(`{
+		"session_id": "c1",
+		"text": "ok\n[skill-called] skill=ops:deploy source=Netcracker/x\n",
+		"workspace_roots": ["/repo"],
+		"transcript_path": "/nope.jsonl"
+	}`)
+	events, err := Dispatch("cursor", stdin, func(cwd string) string {
+		if cwd != "/repo" {
+			t.Fatalf("resolver got cwd %q", cwd)
+		}
+		return "git@host:org/repo.git"
+	})
+	if err != nil {
+		t.Fatalf("dispatch: %v", err)
+	}
+	if len(events) != 1 {
+		t.Fatalf("got %d events, want 1", len(events))
+	}
+	e := events[0]
+	if e.Agent != "cursor" || e.SessionID != "c1" || e.Skill != "ops:deploy" ||
+		e.Source != "Netcracker/x" || e.RepoRemote != "git@host:org/repo.git" {
+		t.Fatalf("event = %+v", e)
+	}
+}
+
+func TestCursorAdapterNoMarker(t *testing.T) {
+	events, err := Dispatch("cursor", []byte(`{"text":"nothing here"}`), func(string) string { return "" })
+	if err != nil {
+		t.Fatalf("dispatch: %v", err)
+	}
+	if len(events) != 0 {
+		t.Fatalf("got %d events, want 0", len(events))
+	}
+}
+
+func TestCursorAdapterMalformedJSON(t *testing.T) {
+	events, err := Dispatch("cursor", []byte(`{not json`), func(string) string { return "" })
+	if err != nil {
+		t.Fatalf("dispatch: %v", err)
+	}
+	if len(events) != 0 {
+		t.Fatalf("got %d events, want 0", len(events))
+	}
+}

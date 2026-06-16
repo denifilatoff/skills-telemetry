@@ -17,6 +17,7 @@ type Adapter func(stdin []byte, remote remoteResolver, now time.Time) ([]SkillEv
 var adapters = map[string]Adapter{
 	"codex":  codexAdapter,
 	"claude": claudeAdapter,
+	"cursor": cursorAdapter,
 }
 
 // Dispatch routes raw stdin to the adapter for the named agent.
@@ -83,6 +84,55 @@ func claudeAdapter(stdin []byte, remote remoteResolver, now time.Time) ([]SkillE
 		Skill:      p.ToolInput.Skill,
 		TS:         now,
 	}}, nil
+}
+
+// cursorPayload is the Cursor afterAgentResponse hook envelope. Only the fields
+// the adapter needs are decoded; the rest (conversation_id, generation_id,
+// model, token counts, cursor_version, user_email) are ignored. user_email is
+// deliberately not collected: it is PII, and the project drops repo.path and
+// turn.id for the same reason.
+type cursorPayload struct {
+	SessionID      string   `json:"session_id"`
+	Text           string   `json:"text"`
+	WorkspaceRoots []string `json:"workspace_roots"`
+	TranscriptPath string   `json:"transcript_path"`
+}
+
+// cursorAdapter scans the afterAgentResponse text for the marker. The hook fires
+// once per agent response, so it may carry several markers. The transcript parse
+// (transcript_cursor.go) is the second, deterministic signal merged in by ingest.
+func cursorAdapter(stdin []byte, remote remoteResolver, now time.Time) ([]SkillEvent, error) {
+	var p cursorPayload
+	if len(stdin) > 0 {
+		_ = json.Unmarshal(stdin, &p)
+	}
+	matches := markerRe.FindAllStringSubmatch(p.Text, -1)
+	if len(matches) == 0 {
+		return nil, nil
+	}
+	rem := cursorRemote(p, remote)
+	events := make([]SkillEvent, 0, len(matches))
+	for _, m := range matches {
+		events = append(events, SkillEvent{
+			Agent:      "cursor",
+			SessionID:  p.SessionID,
+			RepoRemote: rem,
+			Skill:      m[1],
+			Source:     m[2],
+			TS:         now,
+		})
+	}
+	return events, nil
+}
+
+// cursorRemote resolves the git remote from the first workspace root. Cursor
+// gives no git data in the transcript, so the remote always comes from the hook
+// payload, for both the marker and the transcript signals.
+func cursorRemote(p cursorPayload, remote remoteResolver) string {
+	if remote == nil || len(p.WorkspaceRoots) == 0 || p.WorkspaceRoots[0] == "" {
+		return ""
+	}
+	return remote(p.WorkspaceRoots[0])
 }
 
 func codexAdapter(stdin []byte, remote remoteResolver, now time.Time) ([]SkillEvent, error) {

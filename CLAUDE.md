@@ -5,7 +5,7 @@
 This repository builds skill-usage telemetry for AI coding agents. The path:
 
 1. **Detect** skill execution per harness — done for Codex via a `Stop` hook that reads the
-   `[skill-called] skill=<name> source=<source>` breadcrumb.
+   `[skill-called] skill=<name> source=<source>` marker.
 2. **Send** those events to a shared collector — a small Go CLI (the "sender") that
    normalizes each event, buffers it in a machine-global spool, and flushes over OTLP/HTTP.
    See `docs/superpowers/specs/2026-06-12-local-telemetry-sender-design.md` and the plan in

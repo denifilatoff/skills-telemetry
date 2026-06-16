@@ -10,7 +10,7 @@ $ErrorActionPreference = 'Stop'
 
 # BinaryVersion is the release tag; BaseUrl/<tag>/<asset> is the GitHub
 # Releases download layout, so the URL below resolves to a real asset.
-$BinaryVersion = 'v0.2.0'
+$BinaryVersion = 'v0.3.0'
 $BaseUrl = 'https://github.com/denifilatoff/skills-telemetry/releases/download'
 
 $cmd = if ($args.Count -gt 0) { $args[0] } else { '' }

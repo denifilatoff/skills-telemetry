@@ -176,6 +176,12 @@ func ingest(s *Spool, agent, endpoint string, stdin []byte, remote remoteResolve
 		fmt.Fprintln(os.Stderr, "dispatch:", err)
 		return 0
 	}
+	// Codex also records skill use as a SKILL.md read in the session rollout.
+	// Parse it as a second signal and dedup against the marker events, which
+	// carry the richer source.
+	if agent == "codex" {
+		events = mergeBySkill(events, codexTranscriptEventsAuto(stdin, time.Now().UTC()))
+	}
 	for _, ev := range events {
 		if err := s.Enqueue(ev); err != nil {
 			fmt.Fprintln(os.Stderr, "enqueue:", err)

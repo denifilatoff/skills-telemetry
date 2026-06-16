@@ -1,7 +1,7 @@
 # qubership-skills-telemetry
 
 This package provides target-specific hook implementations for observing
-visible skill invocation breadcrumbs.
+visible skill invocation markers.
 
 Current status:
 

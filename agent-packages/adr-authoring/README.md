@@ -15,6 +15,6 @@ status, ISO 8601 dates, and immutable accepted records superseded by new ones.
 ## Note
 
 This package doubles as the instrumented test skill for `qubership-skills-telemetry`.
-Its `SKILL.md` emits a `[skill-called]` breadcrumb on activation, which the
+Its `SKILL.md` emits a `[skill-called]` marker on activation, which the
 telemetry sender records — so the package also proves the pipeline detects an
 arbitrary third-party skill, not only the sender's own self-test.

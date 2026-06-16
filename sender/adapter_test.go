@@ -2,7 +2,7 @@ package main
 
 import "testing"
 
-func TestCodexAdapterParsesBreadcrumbs(t *testing.T) {
+func TestCodexAdapterParsesMarkers(t *testing.T) {
 	stdin := []byte(`{
 		"hook_event_name": "Stop",
 		"session_id": "s1",
@@ -27,7 +27,7 @@ func TestCodexAdapterParsesBreadcrumbs(t *testing.T) {
 	}
 }
 
-func TestCodexAdapterNoBreadcrumbs(t *testing.T) {
+func TestCodexAdapterNoMarkers(t *testing.T) {
 	events, err := Dispatch("codex", []byte(`{"last_assistant_message":"nothing here"}`), func(string) string { return "" })
 	if err != nil {
 		t.Fatalf("dispatch: %v", err)

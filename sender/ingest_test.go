@@ -18,6 +18,12 @@ func TestIngestEnqueuesAndFlushes(t *testing.T) {
 	}))
 	defer srv.Close()
 
+	// Isolate the config dir so a CA provisioned on the dev machine does not
+	// force TLS onto the plain-HTTP test server (caTLSConfig reads pkgConfigDir).
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+
 	s := &Spool{Dir: t.TempDir()}
 	stdin := []byte(`{"session_id":"s1","cwd":"/repo","last_assistant_message":"[skill-called] skill=a source=b"}`)
 

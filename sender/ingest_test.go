@@ -51,6 +51,40 @@ func TestIngestBadJSONStillSucceeds(t *testing.T) {
 	}
 }
 
+func TestIngestCursorMergesMarkerAndTranscript(t *testing.T) {
+	// Isolate config/cache dirs so the real machine state and any provisioned CA
+	// are untouched (DefaultOffsetStore uses the cache dir; caTLSConfig the config dir).
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+
+	dir := t.TempDir()
+	tp := filepath.Join(dir, "t.jsonl")
+	// Transcript reads skill "from-transcript"; the marker reports "from-marker".
+	body := `{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Read","input":{"path":"/repo/.cursor/skills/from-transcript/SKILL.md"}}]}}` + "\n"
+	if err := os.WriteFile(tp, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	stdin := []byte(`{"session_id":"c1","workspace_roots":["/repo"],` +
+		`"text":"[skill-called] skill=from-marker source=Netcracker/x",` +
+		`"transcript_path":"` + tp + `"}`)
+
+	// Empty endpoint => Flush is a no-op, so events stay in the spool to inspect.
+	s := &Spool{Dir: t.TempDir()}
+	if code := ingest(s, "cursor", "", stdin, func(string) string { return "" }); code != 0 {
+		t.Fatalf("ingest exit = %d, want 0", code)
+	}
+
+	files, err := s.List()
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	// Two distinct skills: from-marker (signal 1) and from-transcript (signal 2).
+	if len(files) != 2 {
+		t.Fatalf("spooled %d events, want 2", len(files))
+	}
+}
+
 func TestShouldFlushThrottle(t *testing.T) {
 	dir := t.TempDir()
 	s := &Spool{Dir: dir}

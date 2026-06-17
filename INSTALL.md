@@ -11,7 +11,7 @@ Add the package to your `apm.yml` dependencies:
 ```yaml
 dependencies:
   apm:
-    - denifilatoff/skills-telemetry/agent-packages/qubership-skills-telemetry#v0.3.0
+    - denifilatoff/skills-telemetry/agent-packages/qubership-skills-telemetry#v0.5.0
 ```
 
 Then install and compile for your agent (swap `codex` for your target):
@@ -56,6 +56,6 @@ The setup skill calls these for you; you rarely run them by hand. `skills-teleme
 | `provision` | Write the per-machine config: collector endpoint, optional CA certificate (`--ca=<path>`), and an optional token read without echo. Idempotent. |
 | `status` | Read-only check: build version, config directory, endpoint, whether a CA is present, spool backlog, last flush attempt, and a provisioned verdict. Sends nothing. |
 | `selftest` | Send one marked probe event and report whether the collector accepted it and it left the spool. |
-| `ingest` | The hook path: read an agent hook payload on stdin, detect skill use (on Codex the `[skill-called]` marker plus the `SKILL.md` reads in the session rollout; on Claude Code the `Skill` tool name in the `PreToolUse` payload), queue the events, and flush opportunistically. Always exits 0 so it never fails an agent turn. |
+| `ingest` | The hook path: read an agent hook payload on stdin, detect skill use (on Codex the `[skill-called]` marker plus the `SKILL.md` reads in the session rollout; on Claude Code the `Skill` tool name in the `PreToolUse` payload; on Cursor the marker plus the `SKILL.md` reads in the `afterAgentResponse` transcript), queue the events, and flush opportunistically. Always exits 0 so it never fails an agent turn. |
 | `flush` | Send queued events to the collector and delete each on success. |
 | `version` | Print the build version. |

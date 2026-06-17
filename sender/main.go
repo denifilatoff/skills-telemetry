@@ -182,6 +182,9 @@ func ingest(s *Spool, agent, endpoint string, stdin []byte, remote remoteResolve
 	if agent == "codex" {
 		events = mergeBySkill(events, codexTranscriptEventsAuto(stdin, time.Now().UTC()))
 	}
+	if agent == "cursor" {
+		events = mergeBySkill(events, cursorTranscriptEventsAuto(stdin, remote, time.Now().UTC()))
+	}
 	for _, ev := range events {
 		if err := s.Enqueue(ev); err != nil {
 			fmt.Fprintln(os.Stderr, "enqueue:", err)

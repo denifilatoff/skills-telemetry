@@ -56,10 +56,34 @@ Read state first, close only the gaps it shows, then prove delivery.
 | connection refused / timeout | network or VPN | confirm the user can reach the collector host |
 | 401 / 403 | token missing or rejected | `provision`, enter the token at the no-echo prompt |
 | spool growing, flush failing | one of the above | fix the reported cause, then `selftest` |
+| Cursor: `selftest` passes but real skill runs send nothing | `.cursor/hooks.json` lost its top-level `version` on a fresh `apm install` | add `"version": 1` (see "Cursor: confirm the hook fires") |
 
 `selftest` prints the raw send error (for example an `x509` / `tls` message or an HTTP status);
 map it to a cause above. `status` shows the spool backlog and the provisioned/not verdict but
 does not itself test the network.
+
+## Cursor: confirm the hook fires
+
+On Cursor only, check that `.cursor/hooks.json` has a numeric top-level `version`. A fresh
+`apm install` drops it, and without it Cursor silently loads no hooks — so skills run but
+nothing ever reaches `ingest`. `selftest` still passes, because it calls the binary directly,
+so the broken hook hides behind a green check: the sender works, yet real skill events are
+never captured.
+
+If the field is missing, add it:
+
+```json
+{
+  "version": 1,
+  "hooks": { ... }
+}
+```
+
+A reinstall over a file that already has `version` keeps it; only a fresh install drops it.
+
+This is a workaround for an APM bug, tracked at https://github.com/microsoft/apm/issues/1823.
+Once that issue ships a fix, this step and the matching row in "Failure → fix" are obsolete —
+delete them.
 
 ## Verify delivery
 

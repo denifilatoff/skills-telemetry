@@ -160,21 +160,3 @@ func TestCodexTranscriptEventsMissingFile(t *testing.T) {
 		t.Fatalf("got %v, want nil", got)
 	}
 }
-
-func TestMergeBySkillPrefersMarker(t *testing.T) {
-	marker := []SkillEvent{{Agent: "codex", Skill: "adr-authoring", Source: "o/r/agent-packages/adr-authoring"}}
-	transcript := []SkillEvent{
-		{Agent: "codex", Skill: "adr-authoring"},              // dup -> dropped
-		{Agent: "codex", Skill: "english-us-developer-style"}, // new -> kept
-	}
-	merged := mergeBySkill(marker, transcript)
-	if len(merged) != 2 {
-		t.Fatalf("got %d events, want 2", len(merged))
-	}
-	if merged[0].Skill != "adr-authoring" || merged[0].Source == "" {
-		t.Fatalf("marker event should win with its source: %+v", merged[0])
-	}
-	if merged[1].Skill != "english-us-developer-style" {
-		t.Fatalf("transcript gap not filled: %+v", merged[1])
-	}
-}

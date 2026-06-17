@@ -1,6 +1,6 @@
 name: release
 
-# Build the sender binary for every supported target and publish them to a
+# Build the skills-telemetry CLI binary for every supported target and publish them to a
 # GitHub Release. Triggered by pushing a v* tag, or run manually with an
 # explicit version. The version is baked in via -X main.version and the asset
 # names match what bootstrap.sh downloads: skills-telemetry-<os>-<arch>.
@@ -28,10 +28,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version-file: sender/go.mod
-          cache-dependency-path: sender/go.sum
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
       - name: Test
-        working-directory: sender
         run: go test ./...
 
   build:
@@ -52,10 +51,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version-file: sender/go.mod
-          cache-dependency-path: sender/go.sum
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
       - name: Build
-        working-directory: sender
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
@@ -63,8 +61,8 @@ jobs:
         run: |
           name="skills-telemetry-${GOOS}-${GOARCH}"
           [ "$GOOS" = windows ] && name="${name}.exe"
-          mkdir -p ../dist
-          go build -trimpath -ldflags "-s -w -X main.version=${VERSION}" -o "../dist/${name}" .
+          mkdir -p dist
+          go build -trimpath -ldflags "-s -w -X main.version=${VERSION}" -o "dist/${name}" .
       - uses: actions/upload-artifact@v4
         with:
           name: skills-telemetry-${{ matrix.goos }}-${{ matrix.goarch }}

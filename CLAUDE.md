@@ -11,9 +11,10 @@ Skill-usage telemetry for AI coding agents. A skill run is detected per harness,
 shared OpenTelemetry collector, and packaged through APM so that installing the package into
 a repository is the consent boundary.
 
-- **Component:** the `skills-telemetry` CLI — a small Go binary in `sender/`. It detects the
-  skill, buffers events to a local spool, and flushes over OTLP/HTTPS. No daemon. See
-  [docs/cli.md](docs/cli.md).
+- **Component:** the `skills-telemetry` CLI — a small Go binary at the repository root
+  (a flat `package main`, the "Basic command" layout from the Go module-layout guide). It
+  detects the skill, buffers events to a local outbox, and flushes over OTLP/HTTPS. No
+  daemon. See [docs/cli.md](docs/cli.md).
 - **Detection:** a native hook event where the agent emits one (Claude Code), the session
   transcript otherwise (Codex, Cursor). See [docs/agent-integration.md](docs/agent-integration.md).
 - **Harnesses:** Codex, Claude Code, and Cursor are shipped (v0.5.0). OpenCode is planned.
@@ -63,8 +64,8 @@ generated files so the next run starts clean. They are all gitignored; preview t
 `git clean -xdn`.
 
 - **Remove** (APM install artifacts and build output): `apm_modules/`, `.agents/`,
-  `.codex/`, `.claude/`, `.cursor/`, `apm.lock.yaml`, `sender/dist/`,
-  `sender/skills-telemetry`, and `eval-workspace/`.
+  `.codex/`, `.claude/`, `.cursor/`, `apm.lock.yaml`, `dist/`, the root
+  `skills-telemetry` binary, and `eval-workspace/`.
 - **Keep:** the root `apm.yml` — gitignored and machine-specific, but the install needs it —
   and the per-machine config outside the repo (endpoint, CA, token, `machine.id` under the
   config dir).
@@ -74,18 +75,11 @@ untracked files not yet committed. Remove the listed paths explicitly.
 
 ## Open work
 
-- **Drop the `[skill-called]` marker from the code.** The docs already treat it as retired,
-  but the CLI still implements it: `markerRe` and the marker adapters in `sender/adapter.go`,
-  the marker dedup in `sender/transcript_codex.go` and `sender/main.go`, plus the tests and
-  the `agent-packages/adr-authoring` fixture that emits it.
-- **Rename "sender" to the skills-telemetry CLI in the code.** The source directory `sender/`
-  (and its paths in `.github/workflows/release.yml`), the Go comments, and the emitted
-  `service.name` (`qubership-skills-telemetry-sender`) still use the old name. Renaming
-  `service.name` is backend-visible — dashboards key on it — so decide it deliberately. The Go
-  module is already `skills-telemetry`.
 - **OpenCode adapter** — the fourth harness. A native `use_skill` tool call via the
   `.claude/skills/` compatibility extension, the same path as Claude Code.
 - **Token auth** — the collector is unauthenticated. The CLI already sends a bearer token; the
   gateway must verify it. The shared-versus-per-user-token fork is still open (see
   [Authentication in the design decisions](docs/design-decisions.md#authentication-open)).
-- **Spool housekeeping** — offset-file garbage collection is not implemented.
+- **Outbox housekeeping** — offset-file garbage collection is not implemented.
+- **Dashboards.** The OTLP `service.name` changed from `qubership-skills-telemetry-sender`
+  to `qubership-skills-telemetry`; update the Grafana key that still references the old value.

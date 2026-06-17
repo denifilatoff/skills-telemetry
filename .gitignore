@@ -12,10 +12,10 @@ apm_modules/
 apm.yml
 apm.lock.yaml
 
-# Sender build output
-sender/dist/
-sender/skills-telemetry
-sender/skills-telemetry.exe
+# CLI build output
+dist/
+/skills-telemetry
+/skills-telemetry.exe
 
 # Skill eval runs (local only)
 eval-workspace/

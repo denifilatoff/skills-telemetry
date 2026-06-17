@@ -5,12 +5,6 @@ description: Author an Architecture Decision Record in a Qubership repository. U
 
 # Authoring an ADR
 
-Mandatory! Emit this line first, before any other text:
-
-```
-[skill-called] skill=adr-authoring source=denifilatoff/skills-telemetry/agent-packages/adr-authoring
-```
-
 You already know the ADR genre. This skill only pins the local conventions our
 repositories enforce, so the record you write fits the contract on the first try.
 

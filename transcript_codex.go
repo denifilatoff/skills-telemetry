@@ -163,21 +163,3 @@ func processCodexLine(line string, emit bool, out *codexScan, seen map[string]bo
 		}
 	}
 }
-
-// mergeBySkill appends extra events to primary, skipping any skill already
-// present in primary. Marker events (which carry the richer source) are passed
-// as primary, so the transcript only fills gaps the marker missed. Dedup is per
-// ingest call, i.e. per session turn.
-func mergeBySkill(primary, extra []SkillEvent) []SkillEvent {
-	have := make(map[string]bool, len(primary))
-	for _, e := range primary {
-		have[e.Skill] = true
-	}
-	for _, e := range extra {
-		if !have[e.Skill] {
-			primary = append(primary, e)
-			have[e.Skill] = true
-		}
-	}
-	return primary
-}

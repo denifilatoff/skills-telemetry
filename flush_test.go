@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-func seed(t *testing.T, s *Spool, n int) {
+func seed(t *testing.T, s *Outbox, n int) {
 	t.Helper()
 	for i := 0; i < n; i++ {
 		if err := s.Enqueue(SkillEvent{Agent: "codex", Skill: "s", TS: time.Now().UTC()}); err != nil {
@@ -28,7 +28,7 @@ func TestFlushSendsAndClearsOnSuccess(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	s := &Spool{Dir: t.TempDir()}
+	s := &Outbox{Dir: t.TempDir()}
 	seed(t, s, 3)
 
 	sent, err := Flush(s, srv.URL, "", nil, 2*time.Second)
@@ -43,7 +43,7 @@ func TestFlushSendsAndClearsOnSuccess(t *testing.T) {
 	}
 	files, _ := s.List()
 	if len(files) != 0 {
-		t.Fatalf("spool not cleared: %d files remain", len(files))
+		t.Fatalf("outbox not cleared: %d files remain", len(files))
 	}
 }
 
@@ -59,7 +59,7 @@ func TestFlushTrustsProvisionedCA(t *testing.T) {
 	pool.AddCert(srv.Certificate())
 	cfg := &tls.Config{RootCAs: pool}
 
-	s := &Spool{Dir: t.TempDir()}
+	s := &Outbox{Dir: t.TempDir()}
 	seed(t, s, 2)
 
 	sent, err := Flush(s, srv.URL, "", cfg, 2*time.Second)
@@ -80,7 +80,7 @@ func TestFlushFailsUntrustedTLS(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	s := &Spool{Dir: t.TempDir()}
+	s := &Outbox{Dir: t.TempDir()}
 	seed(t, s, 1)
 
 	// nil tlsConfig => system trust store, which does not trust the test cert.
@@ -100,7 +100,7 @@ func TestFlushKeepsBufferOnServerError(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	s := &Spool{Dir: t.TempDir()}
+	s := &Outbox{Dir: t.TempDir()}
 	seed(t, s, 2)
 
 	_, err := Flush(s, srv.URL, "", nil, 2*time.Second)
@@ -114,7 +114,7 @@ func TestFlushKeepsBufferOnServerError(t *testing.T) {
 }
 
 func TestFlushEmptyEndpointIsNoop(t *testing.T) {
-	s := &Spool{Dir: t.TempDir()}
+	s := &Outbox{Dir: t.TempDir()}
 	seed(t, s, 1)
 	sent, err := Flush(s, "", "", nil, time.Second)
 	if err != nil {
@@ -130,10 +130,10 @@ func TestFlushEmptyEndpointIsNoop(t *testing.T) {
 }
 
 func TestFlushSkipsWhenLocked(t *testing.T) {
-	s := &Spool{Dir: t.TempDir()}
+	s := &Outbox{Dir: t.TempDir()}
 	seed(t, s, 1)
 	// Hold the lock from this test.
-	release, err := lockSpool(s)
+	release, err := lockOutbox(s)
 	if err != nil {
 		t.Fatalf("lock: %v", err)
 	}

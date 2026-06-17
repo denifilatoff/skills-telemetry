@@ -84,7 +84,7 @@ func TestCursorTranscriptEventsReadsFileAndResolvesRemote(t *testing.T) {
 	}
 	e := events[0]
 	if e.Agent != "cursor" || e.SessionID != "c1" || e.Skill != "adr-authoring" ||
-		e.RepoRemote != "git@host:org/repo.git" || e.Source != "" {
+		e.RepoRemote != "git@host:org/repo.git" {
 		t.Fatalf("event = %+v", e)
 	}
 }

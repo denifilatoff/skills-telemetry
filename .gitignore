@@ -4,6 +4,7 @@ apm_modules/
 
 # Local Codex and agent state
 .agents/
+.claude/
 .codex/
 .cursor/
 

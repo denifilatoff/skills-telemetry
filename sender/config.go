@@ -1,0 +1,235 @@
+package main
+
+import (
+	"crypto/rand"
+	"crypto/tls"
+	"crypto/x509"
+	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+)
+
+const pkgName = "qubership-skills-telemetry"
+
+// pkgConfigDir is the per-machine config directory holding durable provisioning
+// state: the env file, the CA certificate, the token, and the machine id. It is
+// os.UserConfigDir() across platforms (Application Support on macOS, ~/.config
+// on Linux, %AppData% on Windows). Returns "" when no config dir is available.
+func pkgConfigDir() string {
+	base, err := os.UserConfigDir()
+	if err != nil || base == "" {
+		return ""
+	}
+	return filepath.Join(base, pkgName)
+}
+
+// pkgConfigPath joins name onto the package config dir, or "" if there is none.
+func pkgConfigPath(name string) string {
+	dir := pkgConfigDir()
+	if dir == "" {
+		return ""
+	}
+	return filepath.Join(dir, name)
+}
+
+// pkgEnv loads the provisioned env file from the package config dir.
+func pkgEnv() map[string]string {
+	return loadEnvFile(pkgConfigPath("env"))
+}
+
+// resolveEndpoint returns the OTLP/HTTP collector URL. Precedence: an explicit
+// --endpoint= flag, then the SKILLS_TELEMETRY_ENDPOINT environment variable
+// (for CI and automation overrides), then the provisioned env file so the
+// binary is self-sufficient when invoked directly (not through the bootstrap).
+// Empty when none is set — the flush then becomes a no-op.
+func resolveEndpoint(flag string) string {
+	return resolveEndpointFrom(flag, os.Getenv("SKILLS_TELEMETRY_ENDPOINT"), pkgEnv()["SKILLS_TELEMETRY_ENDPOINT"])
+}
+
+// resolveEndpointFrom is the testable core: flag wins, then env, then the
+// env-file value.
+func resolveEndpointFrom(flag, env, fileVal string) string {
+	if flag != "" {
+		return flag
+	}
+	if env != "" {
+		return env
+	}
+	return fileVal
+}
+
+// parseEnv reads KEY=VALUE lines into a map. Blank lines and lines starting
+// with '#' are ignored, as are lines without '='. Keys and values are trimmed
+// of surrounding whitespace. This is the format the provisioned env file uses,
+// shared with the shell bootstrap so there is one config format per machine.
+func parseEnv(b []byte) map[string]string {
+	out := make(map[string]string)
+	for _, line := range strings.Split(string(b), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		k, v, ok := strings.Cut(line, "=")
+		if !ok {
+			continue
+		}
+		out[strings.TrimSpace(k)] = strings.TrimSpace(v)
+	}
+	return out
+}
+
+// loadEnvFile parses the env file at path. A missing or unreadable file yields
+// an empty map, not an error: an unprovisioned machine is a valid state.
+func loadEnvFile(path string) map[string]string {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return map[string]string{}
+	}
+	return parseEnv(b)
+}
+
+// resolveToken returns the collector bearer token. It prefers the
+// SKILLS_TELEMETRY_TOKEN environment variable and falls back to a per-user
+// secret file at <UserConfigDir>/qubership-skills-telemetry/token. Empty when
+// neither is set — the flush then sends no Authorization header.
+func resolveToken() string {
+	dir, _ := os.UserConfigDir()
+	return resolveTokenFrom(os.Getenv("SKILLS_TELEMETRY_TOKEN"), dir)
+}
+
+// resolveTokenFrom is the testable core. Precedence: the env var, then the
+// provisioned env file (the single config file provision writes), then the
+// legacy standalone token file. Surrounding whitespace/newlines are trimmed.
+func resolveTokenFrom(env, configDir string) string {
+	if env != "" {
+		return env
+	}
+	if configDir == "" {
+		return ""
+	}
+	pkgDir := filepath.Join(configDir, pkgName)
+	if tok := loadEnvFile(filepath.Join(pkgDir, "env"))["SKILLS_TELEMETRY_TOKEN"]; tok != "" {
+		return tok
+	}
+	b, err := os.ReadFile(filepath.Join(pkgDir, "token"))
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(b))
+}
+
+// caFileName is the well-known name the CLI auto-discovers under the config
+// dir. Provisioning copies the deployment CA here; the flush adds it to the
+// trust pool when present.
+const caFileName = "ca.crt"
+
+// copyCAFile validates that src is a PEM bundle containing at least one
+// certificate, then copies it to <configDir>/ca.crt. Validating up front turns
+// a wrong path into a clear provisioning error instead of a silent TLS failure
+// at send time. The cert is not secret, so 0644 is fine.
+func copyCAFile(configDir, src string) error {
+	b, err := os.ReadFile(src)
+	if err != nil {
+		return err
+	}
+	pool := x509.NewCertPool()
+	if !pool.AppendCertsFromPEM(b) {
+		return errors.New("no PEM certificate found in " + src)
+	}
+	if err := os.MkdirAll(configDir, 0o700); err != nil {
+		return err
+	}
+	dst := filepath.Join(configDir, caFileName)
+	tmp := dst + ".tmp"
+	if err := os.WriteFile(tmp, b, 0o644); err != nil {
+		return err
+	}
+	return os.Rename(tmp, dst)
+}
+
+// caTLSConfig auto-discovers the CA at <configDir>/ca.crt. When the file is
+// absent it returns (nil, nil): the caller leaves TLS at its default, which
+// trusts the system store. When present it appends the CA to a copy of the
+// system pool, so trust is additive — the machine keeps trusting public and
+// corporate roots and adds the private CA on top. A missing config dir or an
+// unreadable system pool degrades to a pool holding just the CA.
+func caTLSConfig(configDir string) (*tls.Config, error) {
+	if configDir == "" {
+		return nil, nil
+	}
+	b, err := os.ReadFile(filepath.Join(configDir, caFileName))
+	if errors.Is(err, os.ErrNotExist) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	pool, err := x509.SystemCertPool()
+	if err != nil || pool == nil {
+		pool = x509.NewCertPool()
+	}
+	if !pool.AppendCertsFromPEM(b) {
+		return nil, errors.New("ca.crt holds no PEM certificate")
+	}
+	return &tls.Config{RootCAs: pool}, nil
+}
+
+// resolveMachineID returns a stable, anonymous identifier for this install.
+// It is a random UUID generated once and persisted under the per-user config
+// dir, never derived from hardware or the username. The collector uses it only
+// to tell installs apart (e.g. to spot one install skewing skill-usage counts),
+// not to identify the user. Returns "" if no config dir is available.
+func resolveMachineID() string {
+	dir, err := os.UserConfigDir()
+	if err != nil || dir == "" {
+		return ""
+	}
+	return resolveMachineIDFrom(dir)
+}
+
+// resolveMachineIDFrom is the testable core: read the id file under configDir,
+// or create it atomically on first run. O_EXCL guards against two concurrent
+// processes each minting a different id — the loser re-reads the winner's file.
+func resolveMachineIDFrom(configDir string) string {
+	pkgDir := filepath.Join(configDir, "qubership-skills-telemetry")
+	path := filepath.Join(pkgDir, "machine-id")
+	if b, err := os.ReadFile(path); err == nil {
+		if id := strings.TrimSpace(string(b)); id != "" {
+			return id
+		}
+	}
+	id := newUUID()
+	if id == "" {
+		return ""
+	}
+	if err := os.MkdirAll(pkgDir, 0o700); err != nil {
+		return id // usable this run, just not persisted
+	}
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+	if err != nil {
+		// Lost the race or cannot create: prefer an already-written id.
+		if b, rerr := os.ReadFile(path); rerr == nil {
+			if existing := strings.TrimSpace(string(b)); existing != "" {
+				return existing
+			}
+		}
+		return id
+	}
+	_, _ = f.WriteString(id + "\n")
+	_ = f.Close()
+	return id
+}
+
+// newUUID returns a random RFC 4122 version 4 UUID, or "" if the system CSPRNG
+// is unavailable.
+func newUUID() string {
+	var b [16]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		return ""
+	}
+	b[6] = (b[6] & 0x0f) | 0x40 // version 4
+	b[8] = (b[8] & 0x3f) | 0x80 // variant 10
+	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:16])
+}

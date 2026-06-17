@@ -12,7 +12,7 @@ differently.
 
 | Signal | Source | Catches | Misses |
 |---|---|---|---|
-| Breadcrumb marker | `[skill-called] skill=<name> source=<source>` baked into `SKILL.md`, matched in `last_assistant_message` | Turns where the model echoes the marker into its reply | Turns where the model does not echo it; the marker also leaks into user-visible output |
+| Marker | `[skill-called] skill=<name> source=<source>` baked into `SKILL.md`, matched in `last_assistant_message` | Turns where the model echoes the marker into its reply | Turns where the model does not echo it; the marker also leaks into user-visible output |
 | Rollout parse | The session transcript on disk, matched on the `SKILL.md` read | Every turn that reads a `SKILL.md`, regardless of what the model writes | Skills loaded without a file read (for example, inlined into the system prompt) |
 
 The two cover different cases, so the sender runs both and deduplicates the result. A

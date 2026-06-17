@@ -1,7 +1,7 @@
 # qubership-skills-telemetry
 
 This package provides target-specific hook implementations for observing
-visible skill invocation markers.
+skill usage from the session transcript.
 
 Current status:
 
@@ -20,8 +20,8 @@ Codex is implemented. Claude, Cursor, and OpenCode adapters are follow-up work.
 
 ## Configuration
 
-The sender reads its collector settings from the environment, delivered per
-machine out of band (a secret manager or onboarding step, never git):
+The `skills-telemetry` CLI reads its collector settings from the environment,
+delivered per machine out of band (a secret manager or onboarding step, never git):
 
 - `SKILLS_TELEMETRY_ENDPOINT` — the OTLP/HTTP collector URL, for example
   `https://collector.example/v1/logs`. Without it the flush is a no-op, so
@@ -44,7 +44,7 @@ on a local machine. Push a `v*` tag to `denifilatoff/skills-telemetry`:
 git tag v0.1.0 && git push origin v0.1.0
 ```
 
-The workflow runs the sender tests, cross-compiles six targets (darwin, linux,
+The workflow runs the CLI tests, cross-compiles six targets (darwin, linux,
 and windows, each for amd64 and arm64), writes `SHA256SUMS`, and attaches every
 artifact to a GitHub Release. `bootstrap.sh` and `bootstrap.ps1` download
 `skills-telemetry-<os>-<arch>` from that release; keep `BINARY_VERSION` in both

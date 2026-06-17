@@ -106,14 +106,14 @@ raw input; the raw stdin lives only during parsing and is not stored afterward.
 
 ```
 adapter/claude.go    — command_name | tool_input (native activation event)
-adapter/codex.go     — Stop: scan the breadcrumb [skill-called] skill=… source=…
-adapter/cursor.go    — afterAgentResponse.text: the same breadcrumb
+adapter/codex.go     — Stop: scan the marker [skill-called] skill=… source=…
+adapter/cursor.go    — afterAgentResponse.text: the same marker
 adapter/opencode.go  — use_skill args (native)
       ↓ each one yields a single normalized SkillEvent
 shared pipeline: enqueue → opportunistic flush over OTLP
 ```
 
-The current `detect_skill_call.py` logic (finding the breadcrumb
+The current `detect_skill_call.py` logic (finding the marker
 `[skill-called] skill=<…> source=<…>`) is ported into Go, into the Codex and Cursor adapters.
 After that, `detect_skill_call.py` is removed.
 

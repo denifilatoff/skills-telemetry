@@ -42,7 +42,7 @@ trusts.
 ## Confirm delivery in the store (optional)
 
 Only if the user has read access to the store. After `selftest`, confirm the probe landed by
-querying for its marker, e.g. against VictoriaLogs:
+querying for its probe name, e.g. against VictoriaLogs:
 
 ```sh
 curl -s '<query-url>/select/logsql/query' --data-urlencode 'query=skill.name:="__selftest__"'

@@ -31,7 +31,7 @@ The OTLP log record now carries:
 - `agent` — the harness that produced the event (`codex`).
 - `session.id` — the harness session identifier.
 - `repo.remote` — the git remote URL, when one resolves. The only repo identifier.
-- `skill.name`, `skill.source` — from the `[skill-called]` breadcrumb.
+- `skill.name`, `skill.source` — from the `[skill-called]` marker.
 
 Resource attributes:
 
@@ -48,5 +48,5 @@ queried back from VictoriaLogs. The stored record showed `repo.path` and `turn.i
 `machine.id` present and grouped into the stream, `service.name` and `scope.version` correct.
 
 The skill did not need reinstalling: the changes are confined to the Go binary, delivered
-through the per-machine cache. Reinstalling would have wiped the detection breadcrumb from the
+through the per-machine cache. Reinstalling would have wiped the detection marker from the
 deployed skill, so it was deliberately left alone.

@@ -9,7 +9,7 @@ The APM package registers one harness-specific hook. The hook runs the
 `skills-telemetry` CLI through `bootstrap.sh`, which makes sure the pinned binary is in
 the per-machine cache, then calls `skills-telemetry ingest --agent=<name>`. The CLI
 reads the agent's payload on stdin, detects any skill that ran, queues the event to an
-on-disk spool, and flushes opportunistically over OTLP/HTTPS. It always exits 0, so it
+on-disk outbox, and flushes opportunistically over OTLP/HTTPS. It always exits 0, so it
 never fails an agent turn. For its internals, see [the skills-telemetry CLI](cli.md).
 
 Detection uses one of two signals, depending on what the agent exposes:

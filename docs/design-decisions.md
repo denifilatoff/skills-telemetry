@@ -69,7 +69,7 @@ one-liner reuses the same binary for headless and CI contexts.
 ## Where config and buffered events live
 
 **Decision.** Keep durable state (endpoint, token, CA, `machine.id`) in the OS config
-directory, and disposable state (the binary and the event spool) in the cache directory.
+directory, and disposable state (the binary and the event outbox) in the cache directory.
 The full layout is in [the skills-telemetry CLI](cli.md#file-layout).
 
 **Why.** The cache is disposable by design — the binary re-downloads, and macOS purges
@@ -97,7 +97,7 @@ value.
 
 **Why.** The event and the future token must never leave the machine unencrypted. The
 endpoint is always `https://`, certificate verification is never skipped, and a TLS
-failure keeps the event in the spool rather than downgrading. When a private CA is
+failure keeps the event in the outbox rather than downgrading. When a private CA is
 provisioned the CLI appends it to the system trust pool, so a self-signed collector
 works without replacing the system roots.
 

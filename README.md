@@ -35,7 +35,7 @@ The package delivers three things into your repository: a harness-specific hook,
 2. The hook runs the CLI, which detects the skill from the agent's payload — a native
    event where the agent emits one, the session transcript where it does not (see
    [Agent integration](docs/agent-integration.md)).
-3. The CLI buffers the event to an on-disk spool, then flushes it over OTLP/HTTPS to
+3. The CLI buffers the event to an on-disk outbox, then flushes it over OTLP/HTTPS to
    the collector.
 
 The endpoint, optional CA certificate, and future token are written once per machine

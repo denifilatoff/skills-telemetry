@@ -1,9 +1,13 @@
 package main
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 )
 
 func TestWriteEnvFileCreatesWithSecurePerms(t *testing.T) {
@@ -102,5 +106,100 @@ func TestParseProvisionFlags(t *testing.T) {
 	}
 	if ca != "/tmp/ca.crt" {
 		t.Fatalf("ca = %q", ca)
+	}
+}
+
+func TestSelftestDeliversProbeAndClearsIt(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	s := &Outbox{Dir: t.TempDir()}
+	res, err := runSelftest(s, srv.URL, "", nil, 2*time.Second)
+	if err != nil {
+		t.Fatalf("selftest: %v", err)
+	}
+	if !res.Delivered {
+		t.Fatal("want Delivered true on HTTP 200")
+	}
+	files, _ := s.List()
+	if len(files) != 0 {
+		t.Fatalf("probe should have left the outbox: %d remain", len(files))
+	}
+}
+
+func TestSelftestKeepsProbeOnFailure(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer srv.Close()
+
+	s := &Outbox{Dir: t.TempDir()}
+	res, err := runSelftest(s, srv.URL, "", nil, 2*time.Second)
+	if err == nil {
+		t.Fatal("want error when the collector rejects the probe")
+	}
+	if res.Delivered {
+		t.Fatal("want Delivered false on failure")
+	}
+	if n := probesRemaining(s); n != 1 {
+		t.Fatalf("probe should remain in the outbox: %d probes", n)
+	}
+}
+
+func TestSelftestErrorsWhenUnprovisioned(t *testing.T) {
+	s := &Outbox{Dir: t.TempDir()}
+	if _, err := runSelftest(s, "", "", nil, time.Second); err == nil {
+		t.Fatal("want error when no endpoint is configured")
+	}
+}
+
+func TestGatherStatusReportsProvisionedState(t *testing.T) {
+	cfg := filepath.Join(t.TempDir(), pkgName)
+	if err := os.WriteFile(filepath.Join(t.TempDir(), "src.crt"), selfSignedPEM(t), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// place a ca.crt via the real writer so the test mirrors provisioning
+	src := filepath.Join(t.TempDir(), "src.crt")
+	_ = os.WriteFile(src, selfSignedPEM(t), 0o644)
+	if err := copyCAFile(cfg, src); err != nil {
+		t.Fatal(err)
+	}
+
+	s := &Outbox{Dir: t.TempDir()}
+	seed(t, s, 2)
+
+	r := gatherStatus(s, cfg, "https://otel.example/v1/logs")
+	if !r.Provisioned {
+		t.Fatal("want provisioned when an endpoint is set")
+	}
+	if !r.CAFound {
+		t.Fatal("want CAFound when ca.crt is present")
+	}
+	if r.Buffered != 2 {
+		t.Fatalf("buffered = %d, want 2", r.Buffered)
+	}
+	if r.Endpoint != "https://otel.example/v1/logs" {
+		t.Fatalf("endpoint = %q", r.Endpoint)
+	}
+}
+
+func TestGatherStatusUnprovisionedWhenNoEndpoint(t *testing.T) {
+	cfg := filepath.Join(t.TempDir(), pkgName)
+	s := &Outbox{Dir: t.TempDir()}
+	r := gatherStatus(s, cfg, "")
+	if r.Provisioned {
+		t.Fatal("want not provisioned when endpoint is empty")
+	}
+	if r.CAFound {
+		t.Fatal("want CAFound false when no ca.crt")
+	}
+}
+
+func TestFormatStatusFlagsNextStepWhenUnprovisioned(t *testing.T) {
+	out := formatStatus(statusReport{Provisioned: false, ConfigDir: "/cfg"})
+	if !strings.Contains(strings.ToLower(out), "not provisioned") {
+		t.Fatalf("output should flag the unprovisioned state, got:\n%s", out)
 	}
 }

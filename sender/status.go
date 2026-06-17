@@ -21,9 +21,9 @@ type statusReport struct {
 	LastFlush   string
 }
 
-// gatherStatus inspects the spool and config dir against an already-resolved
+// gatherStatus inspects the outbox and config dir against an already-resolved
 // endpoint. A machine is "provisioned" once it has an endpoint to send to.
-func gatherStatus(s *Spool, configDir, endpoint string) statusReport {
+func gatherStatus(s *Outbox, configDir, endpoint string) statusReport {
 	r := statusReport{
 		Version:     version,
 		ConfigDir:   configDir,

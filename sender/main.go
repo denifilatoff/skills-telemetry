@@ -48,17 +48,17 @@ func run(args []string, stdout func(string)) int {
 			fmt.Fprintln(os.Stderr, "provision:", err)
 			return 1
 		}
-		s, err := DefaultSpool()
+		s, err := DefaultOutbox()
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "spool:", err)
+			fmt.Fprintln(os.Stderr, "outbox:", err)
 			return 1
 		}
 		stdout(formatStatus(gatherStatus(s, cfg, resolveEndpoint(""))))
 		return 0
 	case "selftest":
-		s, err := DefaultSpool()
+		s, err := DefaultOutbox()
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "spool:", err)
+			fmt.Fprintln(os.Stderr, "outbox:", err)
 			return 1
 		}
 		tlsCfg, cerr := caTLSConfig(pkgConfigDir())
@@ -74,14 +74,14 @@ func run(args []string, stdout func(string)) int {
 			stdout("selftest: probe not confirmed (try again)\n")
 			return 1
 		}
-		stdout("selftest: ok — probe accepted by the collector and cleared from the spool\n")
+		stdout("selftest: ok — probe accepted by the collector and cleared from the outbox\n")
 		return 0
 	case "ingest":
 		agent, endpoint := parseFlags(args[1:])
 		endpoint = resolveEndpoint(endpoint)
-		s, err := DefaultSpool()
+		s, err := DefaultOutbox()
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "spool:", err)
+			fmt.Fprintln(os.Stderr, "outbox:", err)
 			return 0 // never fail the hook
 		}
 		raw, _ := io.ReadAll(os.Stdin)
@@ -89,9 +89,9 @@ func run(args []string, stdout func(string)) int {
 	case "flush":
 		_, endpoint := parseFlags(args[1:])
 		endpoint = resolveEndpoint(endpoint)
-		s, err := DefaultSpool()
+		s, err := DefaultOutbox()
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "spool:", err)
+			fmt.Fprintln(os.Stderr, "outbox:", err)
 			return 0
 		}
 		tlsCfg, err := caTLSConfig(pkgConfigDir())
@@ -103,9 +103,9 @@ func run(args []string, stdout func(string)) int {
 		}
 		return 0
 	case "status":
-		s, err := DefaultSpool()
+		s, err := DefaultOutbox()
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "spool:", err)
+			fmt.Fprintln(os.Stderr, "outbox:", err)
 			return 0
 		}
 		stdout(formatStatus(gatherStatus(s, pkgConfigDir(), resolveEndpoint(""))))
@@ -170,7 +170,7 @@ func readSecret(prompt string) string {
 
 // ingest is the per-event path: parse, enqueue, rotate, opportunistic flush.
 // It returns 0 even on error — a hook must never fail the agent turn.
-func ingest(s *Spool, agent, endpoint string, stdin []byte, remote remoteResolver) int {
+func ingest(s *Outbox, agent, endpoint string, stdin []byte, remote remoteResolver) int {
 	events, err := detect(agent, stdin, remote, time.Now().UTC())
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "detect:", err)
@@ -199,7 +199,7 @@ func ingest(s *Spool, agent, endpoint string, stdin []byte, remote remoteResolve
 
 // shouldFlush is true when there is something to send AND either enough has
 // piled up or enough time has passed since the last attempt.
-func shouldFlush(s *Spool, countN int, intervalT time.Duration) bool {
+func shouldFlush(s *Outbox, countN int, intervalT time.Duration) bool {
 	names, err := s.List()
 	if err != nil || len(names) == 0 {
 		return false
@@ -216,7 +216,7 @@ func shouldFlush(s *Spool, countN int, intervalT time.Duration) bool {
 
 // touchFlushStamp records the time of a flush attempt (success or failure) so
 // the throttle bounds retry frequency against a dead collector.
-func touchFlushStamp(s *Spool) {
+func touchFlushStamp(s *Outbox) {
 	p := filepath.Join(s.Dir, flushStampName)
 	now := time.Now()
 	if err := os.WriteFile(p, []byte(now.UTC().Format(time.RFC3339)), 0o600); err != nil {

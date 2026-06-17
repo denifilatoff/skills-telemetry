@@ -19,7 +19,7 @@ func TestGatherStatusReportsProvisionedState(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	s := &Spool{Dir: t.TempDir()}
+	s := &Outbox{Dir: t.TempDir()}
 	seed(t, s, 2)
 
 	r := gatherStatus(s, cfg, "https://otel.example/v1/logs")
@@ -39,7 +39,7 @@ func TestGatherStatusReportsProvisionedState(t *testing.T) {
 
 func TestGatherStatusUnprovisionedWhenNoEndpoint(t *testing.T) {
 	cfg := filepath.Join(t.TempDir(), pkgName)
-	s := &Spool{Dir: t.TempDir()}
+	s := &Outbox{Dir: t.TempDir()}
 	r := gatherStatus(s, cfg, "")
 	if r.Provisioned {
 		t.Fatal("want not provisioned when endpoint is empty")

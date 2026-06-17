@@ -18,9 +18,9 @@ import (
 
 var errLockBusy = errors.New("flush lock busy")
 
-// lockSpool takes a non-blocking advisory lock for the spool. The returned
+// lockOutbox takes a non-blocking advisory lock for the outbox. The returned
 // func releases it. A nil release with errLockBusy means the lock was busy.
-func lockSpool(s *Spool) (release func(), busy error) {
+func lockOutbox(s *Outbox) (release func(), busy error) {
 	fl := flock.New(filepath.Join(s.Dir, ".flush.lock"))
 	ok, err := fl.TryLock()
 	if err != nil {
@@ -37,7 +37,7 @@ func lockSpool(s *Spool) (release func(), busy error) {
 // adds the provisioned CA to the transport; nil leaves TLS at its default
 // (system trust store). Skips (0, nil) when: endpoint is empty, buffer empty,
 // or the lock is held.
-func Flush(s *Spool, endpoint, token string, tlsConfig *tls.Config, timeout time.Duration) (int, error) {
+func Flush(s *Outbox, endpoint, token string, tlsConfig *tls.Config, timeout time.Duration) (int, error) {
 	if endpoint == "" {
 		return 0, nil
 	}
@@ -49,7 +49,7 @@ func Flush(s *Spool, endpoint, token string, tlsConfig *tls.Config, timeout time
 		return 0, nil
 	}
 
-	release, lockErr := lockSpool(s)
+	release, lockErr := lockOutbox(s)
 	if lockErr == errLockBusy {
 		return 0, nil
 	}

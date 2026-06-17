@@ -13,16 +13,16 @@ const selftestSkill = "__selftest__"
 
 // selftestResult reports what the live probe proved.
 type selftestResult struct {
-	Delivered bool // the collector accepted the probe and it left the spool
+	Delivered bool // the collector accepted the probe and it left the outbox
 	Sent      int  // events sent in the flush that carried the probe
 }
 
 // runSelftest sends one real, marked probe event and confirms the pipeline
 // works end to end up to ingest: the collector accepted it (HTTP 200) and the
-// probe left the spool. This is the guarantee available without read access to
+// probe left the outbox. This is the guarantee available without read access to
 // the store. An empty endpoint is a configuration error, not a delivery
 // failure — the machine is not provisioned.
-func runSelftest(s *Spool, endpoint, token string, tlsConfig *tls.Config, timeout time.Duration) (selftestResult, error) {
+func runSelftest(s *Outbox, endpoint, token string, tlsConfig *tls.Config, timeout time.Duration) (selftestResult, error) {
 	if endpoint == "" {
 		return selftestResult{}, errors.New("no endpoint: machine is not provisioned")
 	}
@@ -43,8 +43,8 @@ func runSelftest(s *Spool, endpoint, token string, tlsConfig *tls.Config, timeou
 }
 
 // probesRemaining counts probe events still buffered — used to confirm the
-// probe actually left the spool after a flush.
-func probesRemaining(s *Spool) int {
+// probe actually left the outbox after a flush.
+func probesRemaining(s *Outbox) int {
 	names, err := s.List()
 	if err != nil {
 		return 0

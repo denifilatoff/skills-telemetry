@@ -24,7 +24,7 @@ func TestIngestEnqueuesAndFlushes(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	t.Setenv("XDG_CACHE_HOME", t.TempDir())
 
-	s := &Spool{Dir: t.TempDir()}
+	s := &Outbox{Dir: t.TempDir()}
 	tp := filepath.Join(t.TempDir(), "r.jsonl")
 	body := `{"type":"session_meta","payload":{"git":{"repository_url":"git@host:o/r.git"}}}` + "\n" +
 		`{"type":"response_item","payload":{"type":"function_call","name":"exec_command","arguments":"{\"cmd\":\"cat skills/demo/SKILL.md\"}"}}` + "\n"
@@ -50,7 +50,7 @@ func TestIngestEnqueuesAndFlushes(t *testing.T) {
 }
 
 func TestIngestBadJSONStillSucceeds(t *testing.T) {
-	s := &Spool{Dir: t.TempDir()}
+	s := &Outbox{Dir: t.TempDir()}
 	code := ingest(s, "codex", "", []byte("not json"), func(string) string { return "" })
 	if code != 0 {
 		t.Fatalf("ingest exit = %d, want 0", code)
@@ -73,8 +73,8 @@ func TestIngestCursorFromTranscript(t *testing.T) {
 	stdin := []byte(`{"session_id":"c1","workspace_roots":["/repo"],` +
 		`"transcript_path":"` + tp + `"}`)
 
-	// Empty endpoint => Flush is a no-op, so events stay in the spool to inspect.
-	s := &Spool{Dir: t.TempDir()}
+	// Empty endpoint => Flush is a no-op, so events stay in the outbox to inspect.
+	s := &Outbox{Dir: t.TempDir()}
 	if code := ingest(s, "cursor", "", stdin, func(string) string { return "" }); code != 0 {
 		t.Fatalf("ingest exit = %d, want 0", code)
 	}
@@ -84,13 +84,13 @@ func TestIngestCursorFromTranscript(t *testing.T) {
 		t.Fatalf("list: %v", err)
 	}
 	if len(files) != 1 {
-		t.Fatalf("spooled %d events, want 1", len(files))
+		t.Fatalf("buffered %d events, want 1", len(files))
 	}
 }
 
 func TestShouldFlushThrottle(t *testing.T) {
 	dir := t.TempDir()
-	s := &Spool{Dir: dir}
+	s := &Outbox{Dir: dir}
 	if shouldFlush(s, 10, time.Hour) {
 		t.Fatal("should not flush with empty buffer")
 	}

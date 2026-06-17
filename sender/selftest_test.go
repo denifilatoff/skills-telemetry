@@ -13,7 +13,7 @@ func TestSelftestDeliversProbeAndClearsIt(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	s := &Spool{Dir: t.TempDir()}
+	s := &Outbox{Dir: t.TempDir()}
 	res, err := runSelftest(s, srv.URL, "", nil, 2*time.Second)
 	if err != nil {
 		t.Fatalf("selftest: %v", err)
@@ -23,7 +23,7 @@ func TestSelftestDeliversProbeAndClearsIt(t *testing.T) {
 	}
 	files, _ := s.List()
 	if len(files) != 0 {
-		t.Fatalf("probe should have left the spool: %d remain", len(files))
+		t.Fatalf("probe should have left the outbox: %d remain", len(files))
 	}
 }
 
@@ -33,7 +33,7 @@ func TestSelftestKeepsProbeOnFailure(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	s := &Spool{Dir: t.TempDir()}
+	s := &Outbox{Dir: t.TempDir()}
 	res, err := runSelftest(s, srv.URL, "", nil, 2*time.Second)
 	if err == nil {
 		t.Fatal("want error when the collector rejects the probe")
@@ -42,12 +42,12 @@ func TestSelftestKeepsProbeOnFailure(t *testing.T) {
 		t.Fatal("want Delivered false on failure")
 	}
 	if n := probesRemaining(s); n != 1 {
-		t.Fatalf("probe should remain in the spool: %d probes", n)
+		t.Fatalf("probe should remain in the outbox: %d probes", n)
 	}
 }
 
 func TestSelftestErrorsWhenUnprovisioned(t *testing.T) {
-	s := &Spool{Dir: t.TempDir()}
+	s := &Outbox{Dir: t.TempDir()}
 	if _, err := runSelftest(s, "", "", nil, time.Second); err == nil {
 		t.Fatal("want error when no endpoint is configured")
 	}

@@ -12,7 +12,6 @@ func TestSkillEventJSONRoundTrip(t *testing.T) {
 		SessionID:  "s1",
 		RepoRemote: "git@host:org/repo.git",
 		Skill:      "ops:deploy",
-		Source:     "Netcracker/qubership-ai-packages",
 		TS:         ts,
 	}
 	b, err := in.MarshalJSON()

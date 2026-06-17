@@ -120,7 +120,6 @@ func Flush(s *Spool, endpoint, token string, tlsConfig *tls.Config, timeout time
 			otellog.String("session.id", ev.SessionID),
 			otellog.String("repo.remote", ev.RepoRemote),
 			otellog.String("skill.name", ev.Skill),
-			otellog.String("skill.source", ev.Source),
 		)
 		logger.Emit(ctx, rec)
 		sentNames = append(sentNames, n)

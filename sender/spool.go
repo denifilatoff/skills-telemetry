@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-const markerName = ".lastflush"
+const flushStampName = ".lastflush"
 
 // Spool is a machine-global directory holding one JSON file per buffered event.
 type Spool struct {
@@ -48,7 +48,7 @@ func (s *Spool) Enqueue(ev SkillEvent) error {
 }
 
 // List returns event file names (not paths), oldest first, excluding temp files
-// and the throttle marker.
+// and the flush stamp.
 func (s *Spool) List() ([]string, error) {
 	entries, err := os.ReadDir(s.Dir)
 	if err != nil {

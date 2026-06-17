@@ -171,19 +171,10 @@ func readSecret(prompt string) string {
 // ingest is the per-event path: parse, enqueue, rotate, opportunistic flush.
 // It returns 0 even on error — a hook must never fail the agent turn.
 func ingest(s *Spool, agent, endpoint string, stdin []byte, remote remoteResolver) int {
-	events, err := Dispatch(agent, stdin, remote)
+	events, err := detect(agent, stdin, remote, time.Now().UTC())
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "dispatch:", err)
+		fmt.Fprintln(os.Stderr, "detect:", err)
 		return 0
-	}
-	// Codex also records skill use as a SKILL.md read in the session rollout.
-	// Parse it as a second signal and dedup against the marker events, which
-	// carry the richer source.
-	if agent == "codex" {
-		events = mergeBySkill(events, codexTranscriptEventsAuto(stdin, time.Now().UTC()))
-	}
-	if agent == "cursor" {
-		events = mergeBySkill(events, cursorTranscriptEventsAuto(stdin, remote, time.Now().UTC()))
 	}
 	for _, ev := range events {
 		if err := s.Enqueue(ev); err != nil {
@@ -194,7 +185,7 @@ func ingest(s *Spool, agent, endpoint string, stdin []byte, remote remoteResolve
 		fmt.Fprintln(os.Stderr, "rotate:", err)
 	}
 	if shouldFlush(s, flushCountN, flushIntervalT) {
-		touchMarker(s)
+		touchFlushStamp(s)
 		tlsCfg, cerr := caTLSConfig(pkgConfigDir())
 		if cerr != nil {
 			fmt.Fprintln(os.Stderr, "ca:", cerr)
@@ -216,20 +207,20 @@ func shouldFlush(s *Spool, countN int, intervalT time.Duration) bool {
 	if len(names) >= countN {
 		return true
 	}
-	fi, err := os.Stat(filepath.Join(s.Dir, markerName))
+	fi, err := os.Stat(filepath.Join(s.Dir, flushStampName))
 	if err != nil {
 		return true // no prior attempt recorded
 	}
 	return time.Since(fi.ModTime()) >= intervalT
 }
 
-// touchMarker records the time of a flush attempt (success or failure) so the
-// throttle bounds retry frequency against a dead collector.
-func touchMarker(s *Spool) {
-	p := filepath.Join(s.Dir, markerName)
+// touchFlushStamp records the time of a flush attempt (success or failure) so
+// the throttle bounds retry frequency against a dead collector.
+func touchFlushStamp(s *Spool) {
+	p := filepath.Join(s.Dir, flushStampName)
 	now := time.Now()
 	if err := os.WriteFile(p, []byte(now.UTC().Format(time.RFC3339)), 0o600); err != nil {
-		fmt.Fprintln(os.Stderr, "marker:", err)
+		fmt.Fprintln(os.Stderr, "flush stamp:", err)
 		return
 	}
 	_ = os.Chtimes(p, now, now)

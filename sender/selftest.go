@@ -30,7 +30,6 @@ func runSelftest(s *Spool, endpoint, token string, tlsConfig *tls.Config, timeou
 		Agent:     "selftest",
 		SessionID: newUUID(),
 		Skill:     selftestSkill,
-		Source:    "selftest",
 		TS:        time.Now().UTC(),
 	}
 	if err := s.Enqueue(probe); err != nil {

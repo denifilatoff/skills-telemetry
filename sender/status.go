@@ -39,7 +39,7 @@ func gatherStatus(s *Spool, configDir, endpoint string) statusReport {
 	if names, err := s.List(); err == nil {
 		r.Buffered = len(names)
 	}
-	if fi, err := os.Stat(filepath.Join(s.Dir, markerName)); err == nil {
+	if fi, err := os.Stat(filepath.Join(s.Dir, flushStampName)); err == nil {
 		r.LastFlush = fi.ModTime().UTC().Format(time.RFC3339)
 	}
 	return r

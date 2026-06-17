@@ -12,7 +12,6 @@ type SkillEvent struct {
 	SessionID  string    `json:"session_id"`
 	RepoRemote string    `json:"repo_remote,omitempty"`
 	Skill      string    `json:"skill"`
-	Source     string    `json:"source,omitempty"`
 	TS         time.Time `json:"ts"`
 }
 

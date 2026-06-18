@@ -53,7 +53,8 @@ Delivery is OTLP/HTTP, over HTTPS only. The CLI never falls back to plaintext an
 skips certificate verification; a TLS failure keeps the event in the outbox rather than
 downgrading. When a private CA is provisioned, the CLI appends it to the system trust
 pool — trust stays additive — so a self-signed collector works without replacing the
-system roots. A per-machine access token is reserved for a future release.
+system roots. A per-machine access token is optional: when provisioned, the CLI sends it
+as an `Authorization: Bearer` header; without one, the request carries no auth header.
 
 ## File layout
 

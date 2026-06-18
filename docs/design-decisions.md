@@ -95,21 +95,19 @@ value.
 
 **Decision.** TLS always, with no plaintext fallback. CA trust is additive.
 
-**Why.** The event and the future token must never leave the machine unencrypted. The
+**Why.** The event and the token must never leave the machine unencrypted. The
 endpoint is always `https://`, certificate verification is never skipped, and a TLS
 failure keeps the event in the outbox rather than downgrading. When a private CA is
 provisioned the CLI appends it to the system trust pool, so a self-signed collector
 works without replacing the system roots.
 
-## Authentication (open)
+## Authentication
 
-**Decision.** Not settled. The CLI already sends `Authorization: Bearer` from a
-per-machine token, and provisioning accepts one, but the gateway does not yet verify it.
+**Decision.** The CLI supports an optional bearer token. When a token is provisioned the
+CLI sends it as `Authorization: Bearer`; without one the request carries no auth header.
+A backend can verify the token to gate ingest.
 
-**Why it is open.** The token has to reach each machine without going through git, which
-is in tension with having no central machine management. The unresolved fork is a shared
-write-only token for everyone versus a personal token per participant — personal is
-better for attribution and revocation, shared is simpler to distribute. Where a
-participant obtains the token (most likely self-service through an internal portal behind
-corporate sign-on) and how it is rotated and revoked are part of the same fork. To be
-settled before rollout.
+**Why optional.** Not every deployment needs ingest auth, and the token has to reach each
+machine out of band rather than through git. The client keeps it optional and the backend
+decides whether to require it. How tokens are issued, distributed, and rotated is a
+deployment concern, out of scope here.

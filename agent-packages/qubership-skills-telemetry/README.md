@@ -1,54 +1,85 @@
 # qubership-skills-telemetry
 
-This package provides target-specific hook implementations for observing
-skill usage from the session transcript.
+This package delivers a harness-specific hook, the `skills-telemetry` CLI, and
+the setup skill into a repository. The hook detects when a skill runs and records
+one event per run.
 
-Current status:
+Supported agents: Codex, Claude Code, and Cursor. An OpenCode adapter is
+follow-up work.
 
-- Codex: implemented fully
-- Cursor: placeholder
-- Claude: placeholder
+## Install
 
-The Codex `Stop` hook calls `bootstrap.sh` (macOS/Linux) or `bootstrap.ps1`
-(Windows). The bootstrap fetches the pinned `skills-telemetry` Go binary into
-a per-machine cache on first run, then runs `ingest --agent=codex`. The
-`ingest` command reads the hook payload from stdin, normalizes the event, and
-writes it to a machine-global spool. The same run opportunistically flushes
-buffered events to the collector over OTLP/HTTP (no daemon).
+Install the APM CLI first ([uv](https://docs.astral.sh/uv/):
+`uv tool install apm-cli`), then add the package one of two ways.
 
-Codex is implemented. Claude, Cursor, and OpenCode adapters are follow-up work.
+Via the APM command:
+
+```sh
+apm install denifilatoff/skills-telemetry/agent-packages/qubership-skills-telemetry
+```
+
+Or add the dependency to your `apm.yml`, pinned to a tag from the
+[Releases](https://github.com/denifilatoff/skills-telemetry/releases) page:
+
+```yaml
+dependencies:
+  apm:
+    - denifilatoff/skills-telemetry/agent-packages/qubership-skills-telemetry#vX.Y.Z
+```
+
+Then install and compile for your agent — `--target` is one of `codex`, `claude`,
+`cursor`, or `all`:
+
+```sh
+apm install --target all
+apm compile --target all
+```
+
+Restart your agent and ask it to "set up skills telemetry". The bundled setup
+skill writes the per-machine config and verifies delivery. Installing is the
+consent boundary — nothing is sent until you run the setup skill.
+
+## How it works
+
+On each turn the agent fires the hook the package registered, and the hook runs
+the CLI as `ingest --agent=<agent>`. The CLI detects the skill from the agent's
+payload — a native hook event where the agent emits one (Claude Code), the
+session transcript where it does not (Codex, Cursor).
+
+The bootstrap launcher (`bootstrap.sh` on macOS/Linux, `bootstrap.ps1` on
+Windows) fetches the pinned `skills-telemetry` Go binary into a per-machine cache
+on first run. `ingest` reads the hook payload, normalizes the event, and writes
+it to a machine-global outbox. The same run opportunistically flushes buffered
+events to the collector over OTLP/HTTPS — there is no daemon.
 
 ## Configuration
 
-The `skills-telemetry` CLI reads its collector settings from the environment,
-delivered per machine out of band (a secret manager or onboarding step, never git):
+The CLI reads its collector settings from the environment or the provisioned
+`env` file under the config dir, delivered per machine out of band (never git):
 
 - `SKILLS_TELEMETRY_ENDPOINT` — the OTLP/HTTP collector URL, for example
-  `https://collector.example/v1/logs`. Without it the flush is a no-op, so
-  events stay buffered in the spool.
-- `SKILLS_TELEMETRY_TOKEN` — the bearer token sent as `Authorization: Bearer`.
-  Falls back to a secret file at
-  `<user-config-dir>/qubership-skills-telemetry/token`. Without it the request
-  carries no auth header.
+  `https://collector.example/v1/logs`. Without it the flush is a no-op, so events
+  stay buffered in the outbox.
+- `SKILLS_TELEMETRY_TOKEN` — the optional bearer token, sent as
+  `Authorization: Bearer`. Without it the request carries no auth header.
 
-An explicit `--endpoint=<url>` flag on the hook command overrides
-`SKILLS_TELEMETRY_ENDPOINT` when you want to pin the collector for one
-repository.
+A private CA is optional: place `ca.crt` in the config dir and the CLI appends it
+to the system trust pool. The setup skill writes all of this for you.
 
 ## Release
 
-Binaries are built and published by the `release` GitHub Actions workflow, not
-on a local machine. Push a `v*` tag to `denifilatoff/skills-telemetry`:
+Binaries are built and published by the `release` GitHub Actions workflow, not on
+a local machine. Push a `v*` tag to `denifilatoff/skills-telemetry`:
 
 ```
-git tag v0.1.0 && git push origin v0.1.0
+git tag vX.Y.Z && git push origin vX.Y.Z
 ```
 
-The workflow runs the CLI tests, cross-compiles six targets (darwin, linux,
-and windows, each for amd64 and arm64), writes `SHA256SUMS`, and attaches every
+The workflow runs the CLI tests, cross-compiles six targets (darwin, linux, and
+windows, each for amd64 and arm64), writes `SHA256SUMS`, and attaches every
 artifact to a GitHub Release. `bootstrap.sh` and `bootstrap.ps1` download
-`skills-telemetry-<os>-<arch>` from that release; keep `BINARY_VERSION` in both
-scripts in step with the tag you push.
+`skills-telemetry-<os>-<arch>` from that release; the workflow stamps
+`BINARY_VERSION` in both scripts to match the tag.
 
 Checksum verification in the bootstrap scripts is follow-up work; the release
 already publishes `SHA256SUMS` for it.

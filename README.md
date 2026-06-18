@@ -98,7 +98,13 @@ uv tool install apm-cli
 
 ### 2. Install the package
 
-Add the package to your `apm.yml`:
+Add the package one of two ways. Via the APM command:
+
+```sh
+apm install denifilatoff/skills-telemetry/agent-packages/qubership-skills-telemetry
+```
+
+Or add the dependency to your `apm.yml`:
 
 ```yaml
 dependencies:

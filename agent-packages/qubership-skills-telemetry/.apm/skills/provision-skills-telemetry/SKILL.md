@@ -23,6 +23,24 @@ write. Never put the token in your own output.
 - Config lives under the config dir that `status` prints: `env` (endpoint, token) and an
   optional `ca.crt`. These are the binary's to write — don't hand-edit them.
 
+## Calling the binary
+
+The commands below use the bare name `skills-telemetry`, but nothing in the install flow puts
+the binary on `PATH` — the bootstrap downloads it into a per-machine cache. So the bare name is
+normally not found; don't retry it. Call the binary through the bootstrap wrapper instead,
+which locates or downloads it and forwards the command — the same entry point the hook uses,
+with no `PATH` dependency. After install it ships in the repository under the harness hook
+directory:
+
+```sh
+sh .claude/hooks/qubership-skills-telemetry/scripts/bootstrap.sh status   # Claude Code
+sh .codex/hooks/qubership-skills-telemetry/scripts/bootstrap.sh status    # Codex
+sh .cursor/hooks/qubership-skills-telemetry/scripts/bootstrap.sh status   # Cursor
+```
+
+Read every `skills-telemetry <cmd>` below as that wrapper call. The bare name works only if the
+user has put the binary on `PATH` themselves — a shortcut, not something to assume.
+
 ## Workflow
 
 Read state first, close only the gaps it shows, then prove delivery.
@@ -31,7 +49,8 @@ Read state first, close only the gaps it shows, then prove delivery.
    (`references/deployment.md`), then retry.
 2. Fix each gap `status` reports (next section).
 3. Run `selftest`. Re-run `status` / `selftest` after each fix until it passes.
-4. Report the outcome (see "Verify delivery").
+4. Confirm the hook is wired for every installed harness (see "Confirm the hook is wired").
+5. Report the outcome (see "Verify delivery").
 
 ## Importing a ready config file
 
@@ -71,34 +90,51 @@ enough.
 | connection refused / timeout | network or VPN | confirm the user can reach the collector host |
 | 401 / 403 | token missing or rejected | `provision`, enter the token at the no-echo prompt |
 | spool growing, flush failing | one of the above | fix the reported cause, then `selftest` |
-| Cursor: `selftest` passes but real skill runs send nothing | `.cursor/hooks.json` lost its top-level `version` on a fresh `apm install` | add `"version": 1` (see "Cursor: confirm the hook fires") |
+| `selftest` passes but real skill runs send nothing | the harness hook is not wired (never installed, or Cursor lost its top-level `version`) | confirm and repair the hook (see "Confirm the hook is wired") |
 
 `selftest` prints the raw send error (for example an `x509` / `tls` message or an HTTP status);
 map it to a cause above. `status` shows the spool backlog and the provisioned/not verdict but
 does not itself test the network.
 
-## Cursor: confirm the hook fires
+## Confirm the hook is wired
 
-On Cursor only, check that `.cursor/hooks.json` has a numeric top-level `version`. A fresh
-`apm install` drops it, and without it Cursor silently loads no hooks — so skills run but
-nothing ever reaches `ingest`. `selftest` still passes, because it calls the binary directly,
-so the broken hook hides behind a green check: the sender works, yet real skill events are
-never captured.
+`selftest` proves the binary can reach the collector, but it calls the binary directly — it
+does not prove the harness fires the hook on real skill runs. A green `selftest` with an
+unwired hook looks done yet captures nothing. After `selftest` passes, confirm the telemetry
+hook is registered for every harness the package is installed for in this repository.
 
-If the field is missing, add it:
+`apm install --target <harness>` writes the hook into that harness's own config under the
+repository root (`apm compile` only regenerates the instruction layer — `AGENTS.md`,
+`CLAUDE.md`, and friends — and never touches the hook file). For every config directory that
+exists, the active hook file must contain the command `bootstrap.sh ingest --agent=<harness>`:
 
-```json
-{
-  "version": 1,
-  "hooks": { ... }
-}
-```
+| Harness | Active hook file | Must contain |
+|---|---|---|
+| Claude Code | `.claude/settings.json` | a `PreToolUse` hook matched on `Skill` running `… ingest --agent=claude` |
+| Codex | `.codex/hooks.json` | a `Stop` hook running `… ingest --agent=codex` |
+| Cursor | `.cursor/hooks.json` | an `afterAgentResponse` hook running `… ingest --agent=cursor`, plus a numeric top-level `version` |
 
-A reinstall over a file that already has `version` keeps it; only a fresh install drops it.
+A directory present but missing the command means the hook never installed: re-run
+`apm install --target <harness>` then `apm compile`, then re-check.
 
-This is a workaround for an APM bug, tracked at https://github.com/microsoft/apm/issues/1823.
-Once that issue ships a fix, this step and the matching row in "Failure → fix" are obsolete —
-delete them.
+Two harness-specific traps:
+
+- **Claude Code** also writes the command into `.claude/apm-hooks.json`, but that file is
+  APM's provenance ledger, not a trigger — only `.claude/settings.json` arms the hook. Check
+  `settings.json`; a match in `apm-hooks.json` alone is a false positive.
+- **Cursor** needs a numeric top-level `version` in `.cursor/hooks.json`. A fresh `apm install`
+  drops it, and without it Cursor silently loads no hooks. A reinstall over a file that already
+  has `version` keeps it; only a fresh install drops it. If it is missing, add it:
+
+  ```json
+  {
+    "version": 1,
+    "hooks": { ... }
+  }
+  ```
+
+  This is a workaround for an APM bug, tracked at https://github.com/microsoft/apm/issues/1823.
+  Once that issue ships a fix, drop this trap and the matching row in "Failure → fix".
 
 ## Verify delivery
 
@@ -112,5 +148,6 @@ delete them.
 
 If the probe stays in the spool, delivery failed: treat it as a gap and diagnose from `status`.
 
-Don't report success without a passing `selftest`. A written config that can't reach the
-collector looks done but sends nothing.
+Don't report success without a passing `selftest` and a wired hook. A written config that
+can't reach the collector looks done but sends nothing; a green `selftest` with an unwired
+hook captures nothing on real skill runs. Both must hold.

@@ -33,9 +33,9 @@ Read state first, close only the gaps it shows, then prove delivery.
 3. Run `selftest`. Re-run `status` / `selftest` after each fix until it passes.
 4. Report the outcome (see "Verify delivery").
 
-## If you were handed a config file
+## Importing a ready config file
 
-When the user points you to a ready `env` file (it carries `SKILLS_TELEMETRY_ENDPOINT` and
+If the user provides a ready `env` file (it carries `SKILLS_TELEMETRY_ENDPOINT` and
 `SKILLS_TELEMETRY_TOKEN`), copy it into place instead of provisioning field by field:
 
 1. Read the config dir from `status` (the `config_dir:` line).
@@ -43,7 +43,7 @@ When the user points you to a ready `env` file (it carries `SKILLS_TELEMETRY_END
    `mkdir -p <config_dir> && cp <given-file> <config_dir>/env`.
 3. Run `selftest` to confirm delivery.
 
-Do not open, read, print, or echo the file — it holds the token, and anything in this
+Do not open, read, print, or echo the file — it may hold a token, and anything in this
 conversation enters the model's context. A copy moves the bytes without reading them. The
 CLI mints the anonymous `machine-id` itself on first send, so the two properties are
 enough.

@@ -19,3 +19,6 @@ dist/
 
 # Skill eval runs (local only)
 eval-workspace/
+
+# Local backend deploy (test only)
+local-deploy-otel/

@@ -14,7 +14,7 @@ Have these on hand before you start:
 
 - the collector endpoint (an `https://` URL);
 - the CA certificate, if the collector uses a private one;
-- an access token — not required yet, reserved for a future release.
+- an access token, if the collector expects one.
 
 ## What it does
 
@@ -38,7 +38,7 @@ The package delivers three things into your repository: a harness-specific hook,
 3. The CLI buffers the event to an on-disk outbox, then flushes it over OTLP/HTTPS to
    the collector.
 
-The endpoint, optional CA certificate, and future token are written once per machine
+The endpoint, optional CA certificate, and optional token are written once per machine
 by the setup skill. The hook calls the CLI by a path relative to the project root, so
 there is no machine-global address to configure. For its internals and file layout, see
 [the skills-telemetry CLI](docs/cli.md).
@@ -74,8 +74,8 @@ The collector is out of scope for this repository, but the CLI expects:
 - **OTLP/HTTP ingest** for OpenTelemetry logs.
 - **HTTPS only.** The CLI never falls back to plaintext, never skips certificate
   verification, and trusts a private CA additively when one is provisioned.
-- **Token authentication** — planned. The CLI reserves a per-machine token; the
-  gateway will verify it in a future release.
+- **Token authentication** — optional. When a token is provisioned, the CLI sends it as
+  an `Authorization: Bearer` header; without one, the request carries no auth header.
 
 ## Documentation
 

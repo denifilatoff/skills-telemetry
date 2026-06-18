@@ -77,9 +77,6 @@ untracked files not yet committed. Remove the listed paths explicitly.
 
 - **OpenCode adapter** — the fourth harness. A native `use_skill` tool call via the
   `.claude/skills/` compatibility extension, the same path as Claude Code.
-- **Token auth** — the collector is unauthenticated. The CLI already sends a bearer token; the
-  gateway must verify it. The shared-versus-per-user-token fork is still open (see
-  [Authentication in the design decisions](docs/design-decisions.md#authentication-open)).
 - **Outbox housekeeping** — offset-file garbage collection is not implemented.
 - **Dashboards.** The OTLP `service.name` changed from `qubership-skills-telemetry-sender`
   to `qubership-skills-telemetry`; update the Grafana key that still references the old value.

@@ -30,7 +30,10 @@ the binary on `PATH` — the bootstrap downloads it into a per-machine cache. So
 normally not found; don't retry it. Call the binary through the bootstrap wrapper instead,
 which locates or downloads it and forwards the command — the same entry point the hook uses,
 with no `PATH` dependency. After install it ships in the repository under the harness hook
-directory:
+directory, as a POSIX-shell `bootstrap.sh` and a PowerShell `bootstrap.ps1` side by side. Pick
+the script for your shell; the harness only chooses the directory.
+
+On macOS or Linux, call the `.sh` script with `sh`:
 
 ```sh
 sh .claude/hooks/qubership-skills-telemetry/scripts/bootstrap.sh status   # Claude Code
@@ -38,8 +41,18 @@ sh .codex/hooks/qubership-skills-telemetry/scripts/bootstrap.sh status    # Code
 sh .cursor/hooks/qubership-skills-telemetry/scripts/bootstrap.sh status   # Cursor
 ```
 
-Read every `skills-telemetry <cmd>` below as that wrapper call. The bare name works only if the
-user has put the binary on `PATH` themselves — a shortcut, not something to assume.
+On Windows, call the `.ps1` script with PowerShell — `pwsh` (PowerShell 7) or `powershell`
+(Windows PowerShell 5.1):
+
+```powershell
+pwsh .claude\hooks\qubership-skills-telemetry\scripts\bootstrap.ps1 status   # Claude Code
+pwsh .codex\hooks\qubership-skills-telemetry\scripts\bootstrap.ps1 status    # Codex
+pwsh .cursor\hooks\qubership-skills-telemetry\scripts\bootstrap.ps1 status   # Cursor
+```
+
+Read every `skills-telemetry <cmd>` below as that wrapper call, in whichever shell you are on.
+The bare name works only if the user has put the binary on `PATH` themselves — a shortcut, not
+something to assume.
 
 ## Workflow
 

@@ -16,6 +16,12 @@ func codexExecLine(cmd string) string {
 	return string(line) + "\n"
 }
 
+func codexCustomExecLine(input string) string {
+	payload := map[string]any{"type": "custom_tool_call", "name": "exec", "input": input}
+	line, _ := json.Marshal(map[string]any{"type": "response_item", "payload": payload})
+	return string(line) + "\n"
+}
+
 func codexMetaLine(repo string) string {
 	payload := map[string]any{"id": "s1", "cwd": "/repo", "git": map[string]string{"repository_url": repo}}
 	line, _ := json.Marshal(map[string]any{"type": "session_meta", "payload": payload})
@@ -42,6 +48,14 @@ func TestScanCodexRolloutFindsSkillRead(t *testing.T) {
 	}
 	if end != int64(len(roll)) {
 		t.Fatalf("end = %d, want %d", end, len(roll))
+	}
+}
+
+func TestScanCodexRolloutFindsDesktopCustomExecSkillRead(t *testing.T) {
+	roll := codexCustomExecLine(`const r = await tools.shell_command({"command":"Get-Content -Raw '.agents\\skills\\provision-skills-telemetry\\SKILL.md'"}); text(r)`)
+	scan, _ := scanCodexRollout(strings.NewReader(roll), 0)
+	if len(scan.skills) != 1 || scan.skills[0] != "provision-skills-telemetry" {
+		t.Fatalf("skills = %v, want [provision-skills-telemetry]", scan.skills)
 	}
 }
 

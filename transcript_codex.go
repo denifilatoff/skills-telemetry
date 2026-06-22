@@ -15,7 +15,11 @@ import (
 // in skills/<name>/SKILL.md, so the trailing path is matched rather than the
 // reading command (sed, cat, head, rg, ...). The character before `skills/`
 // must be a separator so a directory like `my-skills` does not match.
-var codexSkillReadRe = regexp.MustCompile(`(?:^|[\s"'=/])skills/([^/\s"']+)/SKILL\.md`)
+//
+// Separators repeat ([\\/]+) because a Windows path inside the desktop app's
+// custom_tool_call input is embedded in a JS string literal, so each backslash
+// arrives doubled (skills\\<name>\\SKILL.md) after the outer JSON is decoded.
+var codexSkillReadRe = regexp.MustCompile(`(?:^|[\s"'=/\\])skills[\\/]+([^\\/\s"']+)[\\/]+SKILL\.md`)
 
 // codexTranscriptEvents reads the rollout named by transcript_path in the Stop
 // payload and returns one event per skill SKILL.md read since the last run. It
@@ -141,20 +145,27 @@ func processCodexLine(line string, emit bool, out *codexScan, seen map[string]bo
 			Type      string `json:"type"`
 			Name      string `json:"name"`
 			Arguments string `json:"arguments"`
+			Input     string `json:"input"`
 		}
 		if json.Unmarshal(env.Payload, &fc) != nil {
 			return
 		}
-		if fc.Type != "function_call" || fc.Name != "exec_command" {
+		var text string
+		switch {
+		case fc.Type == "function_call" && fc.Name == "exec_command":
+			var args struct {
+				Cmd string `json:"cmd"`
+			}
+			if json.Unmarshal([]byte(fc.Arguments), &args) != nil {
+				return
+			}
+			text = args.Cmd
+		case fc.Type == "custom_tool_call" && fc.Name == "exec":
+			text = fc.Input
+		default:
 			return
 		}
-		var args struct {
-			Cmd string `json:"cmd"`
-		}
-		if json.Unmarshal([]byte(fc.Arguments), &args) != nil {
-			return
-		}
-		for _, m := range codexSkillReadRe.FindAllStringSubmatch(args.Cmd, -1) {
+		for _, m := range codexSkillReadRe.FindAllStringSubmatch(text, -1) {
 			name := m[1]
 			if !seen[name] {
 				seen[name] = true

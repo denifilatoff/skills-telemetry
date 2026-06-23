@@ -27,3 +27,6 @@ eval-workspace/
 
 # Local backend deploy (test only)
 local-deploy-otel/
+
+# Ready-made telemetry config for install testing (endpoint + token; never committed)
+/test-telemetry.env

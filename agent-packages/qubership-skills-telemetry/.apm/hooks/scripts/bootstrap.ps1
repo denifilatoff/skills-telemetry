@@ -16,7 +16,7 @@ $ErrorActionPreference = 'Stop'
 
 # BinaryVersion is the release tag; BaseUrl/<tag>/<asset> is the GitHub
 # Releases download layout, so the URL below resolves to a real asset.
-$BinaryVersion = 'v0.5.3'
+$BinaryVersion = 'v0.6.0'
 $BaseUrl = 'https://github.com/denifilatoff/skills-telemetry/releases/download'
 
 # ~/.local/bin is the uniform install location across every OS.

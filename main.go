@@ -29,12 +29,19 @@ func main() {
 
 func run(args []string, stdout func(string)) int {
 	if len(args) == 0 {
-		stdout("usage: skills-telemetry <ingest|flush|status|selftest|provision|version>\n")
+		stdout("usage: skills-telemetry <ingest|flush|status|selftest|provision|update-check|version>\n")
 		return 2
 	}
 	switch args[0] {
 	case "version":
 		stdout(version + "\n")
+		return 0
+	case "update-check":
+		// Report whether a newer release exists. Always exits 0 — a check is
+		// advisory and must never become a reason a caller fails.
+		stdout(formatUpdateCheck(gatherUpdateCheck(version, func() (string, error) {
+			return latestReleaseTag(updateCheckTimeout)
+		})))
 		return 0
 	case "provision":
 		endpoint, caPath := parseProvisionFlags(args[1:])

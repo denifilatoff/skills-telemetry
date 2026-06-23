@@ -10,6 +10,32 @@ import (
 	"time"
 )
 
+func TestResourceAttrsCarriesOSType(t *testing.T) {
+	got := map[string]string{}
+	for _, kv := range resourceAttrs("1.2.3", "windows", "mid-1") {
+		got[string(kv.Key)] = kv.Value.AsString()
+	}
+	if got["os.type"] != "windows" {
+		t.Fatalf("os.type = %q, want windows", got["os.type"])
+	}
+	if got["service.name"] != "qubership-skills-telemetry" {
+		t.Fatalf("service.name = %q", got["service.name"])
+	}
+	if got["service.version"] != "1.2.3" {
+		t.Fatalf("service.version = %q", got["service.version"])
+	}
+	if got["machine.id"] != "mid-1" {
+		t.Fatalf("machine.id = %q", got["machine.id"])
+	}
+
+	// An empty machine id is omitted, not sent blank.
+	for _, kv := range resourceAttrs("v", "linux", "") {
+		if string(kv.Key) == "machine.id" {
+			t.Fatal("machine.id must be omitted when empty")
+		}
+	}
+}
+
 func seed(t *testing.T, s *Outbox, n int) {
 	t.Helper()
 	for i := 0; i < n; i++ {
@@ -21,6 +47,7 @@ func seed(t *testing.T, s *Outbox, n int) {
 }
 
 func TestFlushSendsAndClearsOnSuccess(t *testing.T) {
+	isolateConfigCache(t)
 	var hits int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		atomic.AddInt32(&hits, 1)
@@ -48,6 +75,7 @@ func TestFlushSendsAndClearsOnSuccess(t *testing.T) {
 }
 
 func TestFlushTrustsProvisionedCA(t *testing.T) {
+	isolateConfigCache(t)
 	var hits int32
 	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		atomic.AddInt32(&hits, 1)
@@ -75,6 +103,7 @@ func TestFlushTrustsProvisionedCA(t *testing.T) {
 }
 
 func TestFlushFailsUntrustedTLS(t *testing.T) {
+	isolateConfigCache(t)
 	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -95,6 +124,7 @@ func TestFlushFailsUntrustedTLS(t *testing.T) {
 }
 
 func TestFlushKeepsBufferOnServerError(t *testing.T) {
+	isolateConfigCache(t)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 	}))

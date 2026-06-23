@@ -2,7 +2,7 @@
   "version": 1,
   "hooks": {
     "afterAgentResponse": [
-      { "command": "sh ./scripts/bootstrap.sh ingest --agent=cursor" }
+      { "command": "skills-telemetry ingest --agent=cursor" }
     ]
   }
 }

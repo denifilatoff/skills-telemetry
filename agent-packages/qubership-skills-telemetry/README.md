@@ -42,15 +42,17 @@ consent boundary — nothing is sent until you run the setup skill.
 ## How it works
 
 On each turn the agent fires the hook the package registered, and the hook runs
-the CLI as `ingest --agent=<agent>`. The CLI detects the skill from the agent's
-payload — a native hook event where the agent emits one (Claude Code), the
-session transcript where it does not (Codex, Cursor).
+the CLI by its bare name as `skills-telemetry ingest --agent=<agent>`. The CLI
+detects the skill from the agent's payload — a native hook event where the agent
+emits one (Claude Code), the session transcript where it does not (Codex, Cursor).
 
-The bootstrap launcher (`bootstrap.sh` on macOS/Linux, `bootstrap.ps1` on
-Windows) fetches the pinned `skills-telemetry` Go binary into a per-machine cache
-on first run. `ingest` reads the hook payload, normalizes the event, and writes
-it to a machine-global outbox. The same run opportunistically flushes buffered
-events to the collector over OTLP/HTTPS — there is no daemon.
+The hook resolves the binary from `PATH`, so it must be installed there first. The
+installer (`bootstrap.sh` on macOS/Linux, `bootstrap.ps1` on Windows) fetches the
+pinned `skills-telemetry` Go binary into `~/.local/bin` and adds that directory to
+`PATH` — the one-time step the setup skill runs. `ingest` reads the hook payload,
+normalizes the event, and writes it to a machine-global outbox. The same run
+opportunistically flushes buffered events to the collector over OTLP/HTTPS — there
+is no daemon.
 
 ## Configuration
 

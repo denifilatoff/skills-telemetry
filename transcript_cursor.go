@@ -11,12 +11,6 @@ import (
 	"time"
 )
 
-// cursorSkillReadRe matches the Read tool input.path of a skill body. The path
-// is absolute, ending in .cursor/skills/<name>/SKILL.md. The character before
-// `.cursor` must be a separator (or start of string) so a path like
-// `my.cursor/...` does not match.
-var cursorSkillReadRe = regexp.MustCompile(`(?:^|/)\.cursor/skills/([^/]+)/SKILL\.md`)
-
 // cursorManualSkillRe matches a `Skill Name: <name>` line inside the
 // <manually_attached_skills> block Cursor inlines on a manual /skill-name call.
 var cursorManualSkillRe = regexp.MustCompile(`(?m)^Skill Name:\s*(\S+)`)
@@ -74,8 +68,8 @@ func processCursorLine(line string, skills *[]string, seen map[string]bool) {
 			if c.Name != "Read" {
 				continue
 			}
-			if m := cursorSkillReadRe.FindStringSubmatch(c.Input.Path); m != nil {
-				add(m[1])
+			if name, ok := skillNameInPath(c.Input.Path); ok {
+				add(name)
 			}
 		case "text":
 			// Block-presence-gated, not block-bounded: once the manual-attach

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -70,6 +71,24 @@ func TestScanCursorTranscriptManualAttachMultiple(t *testing.T) {
 	}
 }
 
+func TestScanCursorTranscriptWindowsAgentsPath(t *testing.T) {
+	path := `C:\Users\denif\repo\.agents\skills\provision-skills-telemetry\SKILL.md`
+	line, err := json.Marshal(map[string]any{
+		"message": map[string]any{
+			"content": []map[string]any{
+				{"type": "tool_use", "name": "Read", "input": map[string]any{"path": path}},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	skills, _ := scanCursorTranscript(strings.NewReader(string(line)+"\n"), 0)
+	if len(skills) != 1 || skills[0] != "provision-skills-telemetry" {
+		t.Fatalf("skills = %v, want [provision-skills-telemetry]", skills)
+	}
+}
+
 func TestCursorTranscriptEventsReadsFileAndResolvesRemote(t *testing.T) {
 	dir := t.TempDir()
 	tp := filepath.Join(dir, "t.jsonl")
@@ -77,7 +96,7 @@ func TestCursorTranscriptEventsReadsFileAndResolvesRemote(t *testing.T) {
 	if err := os.WriteFile(tp, []byte(body), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	stdin := []byte(`{"session_id":"c1","workspace_roots":["/repo"],"transcript_path":"` + tp + `"}`)
+	stdin, _ := json.Marshal(map[string]any{"session_id": "c1", "workspace_roots": []string{"/repo"}, "transcript_path": tp})
 	events := cursorTranscriptEvents(stdin, nil, func(string) string { return "git@host:org/repo.git" }, fixedTime)
 	if len(events) != 1 {
 		t.Fatalf("got %d events, want 1", len(events))
@@ -104,7 +123,7 @@ func TestCursorTranscriptEventsHonorsOffset(t *testing.T) {
 		t.Fatal(err)
 	}
 	store := &OffsetStore{Dir: t.TempDir()}
-	stdin := []byte(`{"session_id":"c1","workspace_roots":["/repo"],"transcript_path":"` + tp + `"}`)
+	stdin, _ := json.Marshal(map[string]any{"session_id": "c1", "workspace_roots": []string{"/repo"}, "transcript_path": tp})
 
 	first1 := cursorTranscriptEvents(stdin, store, func(string) string { return "" }, fixedTime)
 	if len(first1) != 1 || first1[0].Skill != "old" {

@@ -16,6 +16,13 @@ func codexExecLine(cmd string) string {
 	return string(line) + "\n"
 }
 
+func codexShellCommandLine(command string) string {
+	args, _ := json.Marshal(map[string]string{"command": command})
+	payload := map[string]any{"type": "function_call", "name": "shell_command", "arguments": string(args)}
+	line, _ := json.Marshal(map[string]any{"type": "response_item", "payload": payload})
+	return string(line) + "\n"
+}
+
 func codexCustomExecLine(input string) string {
 	payload := map[string]any{"type": "custom_tool_call", "name": "exec", "input": input}
 	line, _ := json.Marshal(map[string]any{"type": "response_item", "payload": payload})
@@ -53,6 +60,14 @@ func TestScanCodexRolloutFindsSkillRead(t *testing.T) {
 
 func TestScanCodexRolloutFindsDesktopCustomExecSkillRead(t *testing.T) {
 	roll := codexCustomExecLine(`const r = await tools.shell_command({"command":"Get-Content -Raw '.agents\\skills\\provision-skills-telemetry\\SKILL.md'"}); text(r)`)
+	scan, _ := scanCodexRollout(strings.NewReader(roll), 0)
+	if len(scan.skills) != 1 || scan.skills[0] != "provision-skills-telemetry" {
+		t.Fatalf("skills = %v, want [provision-skills-telemetry]", scan.skills)
+	}
+}
+
+func TestScanCodexRolloutFindsDesktopShellCommandSkillRead(t *testing.T) {
+	roll := codexShellCommandLine(`Get-Content -LiteralPath 'C:\Users\denif\repo\.agents\skills\provision-skills-telemetry\SKILL.md'`)
 	scan, _ := scanCodexRollout(strings.NewReader(roll), 0)
 	if len(scan.skills) != 1 || scan.skills[0] != "provision-skills-telemetry" {
 		t.Fatalf("skills = %v, want [provision-skills-telemetry]", scan.skills)

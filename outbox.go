@@ -45,13 +45,28 @@ type Outbox struct {
 	Dir string
 }
 
+// cacheBase resolves the root under which the outbox and offset store live. Like
+// configBase, it is a uniform XDG-style path on every OS — $XDG_CACHE_HOME, else
+// ~/.cache — so a packaged harness (Claude Desktop on Windows, whose %LocalAppData%
+// is virtualized by MSIX) and a plain shell share one cache. Returns "" when
+// neither a cache dir nor a home dir is available.
+func cacheBase() string {
+	return cacheBaseFrom(os.Getenv("XDG_CACHE_HOME"), userHomeDir())
+}
+
+// cacheBaseFrom is the testable core: an explicit $XDG_CACHE_HOME wins, else fall
+// back to <home>/.cache. Empty when both inputs are empty.
+func cacheBaseFrom(xdg, home string) string {
+	return xdgBaseFrom(xdg, home, ".cache")
+}
+
 // DefaultOutbox returns the per-machine outbox rooted in the user cache dir.
 func DefaultOutbox() (*Outbox, error) {
-	base, err := os.UserCacheDir()
-	if err != nil {
-		return nil, err
+	base := cacheBase()
+	if base == "" {
+		return nil, fmt.Errorf("no cache directory available")
 	}
-	dir := filepath.Join(base, "qubership-skills-telemetry", "outbox")
+	dir := filepath.Join(base, pkgName, "outbox")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return nil, err
 	}
@@ -145,9 +160,9 @@ type OffsetStore struct {
 // DefaultOffsetStore roots the offset directory in the user cache dir, beside
 // the outbox. It returns an error when no cache dir is available.
 func DefaultOffsetStore() (*OffsetStore, error) {
-	base, err := os.UserCacheDir()
-	if err != nil {
-		return nil, err
+	base := cacheBase()
+	if base == "" {
+		return nil, fmt.Errorf("no cache directory available")
 	}
 	dir := filepath.Join(base, pkgName, "offsets")
 	if err := os.MkdirAll(dir, 0o755); err != nil {

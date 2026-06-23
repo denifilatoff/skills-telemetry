@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -49,7 +50,7 @@ func TestIngestEnqueuesAndFlushes(t *testing.T) {
 	if err := os.WriteFile(tp, []byte(body), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	stdin := []byte(`{"session_id":"s1","transcript_path":"` + tp + `"}`)
+	stdin, _ := json.Marshal(map[string]any{"session_id": "s1", "transcript_path": tp})
 
 	code := ingest(s, "codex", srv.URL, stdin, func(string) string { return "" })
 	if code != 0 {
@@ -88,8 +89,7 @@ func TestIngestCursorFromTranscript(t *testing.T) {
 	if err := os.WriteFile(tp, []byte(body), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	stdin := []byte(`{"session_id":"c1","workspace_roots":["/repo"],` +
-		`"transcript_path":"` + tp + `"}`)
+	stdin, _ := json.Marshal(map[string]any{"session_id": "c1", "workspace_roots": []string{"/repo"}, "transcript_path": tp})
 
 	// Empty endpoint => Flush is a no-op, so events stay in the outbox to inspect.
 	s := &Outbox{Dir: t.TempDir()}

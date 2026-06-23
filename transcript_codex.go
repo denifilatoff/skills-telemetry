@@ -6,20 +6,8 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"regexp"
 	"time"
 )
-
-// codexSkillReadRe matches a shell command that opens a skill's SKILL.md. The
-// path is absolute in the desktop app and relative under `codex exec`; both end
-// in skills/<name>/SKILL.md, so the trailing path is matched rather than the
-// reading command (sed, cat, head, rg, ...). The character before `skills/`
-// must be a separator so a directory like `my-skills` does not match.
-//
-// Separators repeat ([\\/]+) because a Windows path inside the desktop app's
-// custom_tool_call input is embedded in a JS string literal, so each backslash
-// arrives doubled (skills\\<name>\\SKILL.md) after the outer JSON is decoded.
-var codexSkillReadRe = regexp.MustCompile(`(?:^|[\s"'=/\\])skills[\\/]+([^\\/\s"']+)[\\/]+SKILL\.md`)
 
 // codexTranscriptEvents reads the rollout named by transcript_path in the Stop
 // payload and returns one event per skill SKILL.md read since the last run. It
@@ -150,27 +138,63 @@ func processCodexLine(line string, emit bool, out *codexScan, seen map[string]bo
 		if json.Unmarshal(env.Payload, &fc) != nil {
 			return
 		}
-		var text string
-		switch {
-		case fc.Type == "function_call" && fc.Name == "exec_command":
-			var args struct {
-				Cmd string `json:"cmd"`
-			}
-			if json.Unmarshal([]byte(fc.Arguments), &args) != nil {
-				return
-			}
-			text = args.Cmd
-		case fc.Type == "custom_tool_call" && fc.Name == "exec":
-			text = fc.Input
-		default:
+		texts := codexToolTexts(fc.Type, fc.Name, fc.Arguments, fc.Input)
+		if len(texts) == 0 {
 			return
 		}
-		for _, m := range codexSkillReadRe.FindAllStringSubmatch(text, -1) {
-			name := m[1]
-			if !seen[name] {
-				seen[name] = true
-				out.skills = append(out.skills, name)
+		for _, text := range texts {
+			for _, name := range skillNamesInText(text) {
+				if !seen[name] {
+					seen[name] = true
+					out.skills = append(out.skills, name)
+				}
 			}
 		}
 	}
+}
+
+func codexToolTexts(typ, name, arguments, input string) []string {
+	switch {
+	case typ == "custom_tool_call" && name == "exec":
+		if input == "" {
+			return nil
+		}
+		return []string{input}
+	case typ == "function_call":
+		return codexFunctionCallTexts(name, arguments)
+	default:
+		return nil
+	}
+}
+
+func codexFunctionCallTexts(name, arguments string) []string {
+	if arguments == "" {
+		return nil
+	}
+	var args map[string]any
+	if json.Unmarshal([]byte(arguments), &args) != nil {
+		return nil
+	}
+
+	var keys []string
+	if name == "exec_command" || name == "shell_command" {
+		keys = []string{"cmd", "command"}
+	}
+
+	var texts []string
+	for _, key := range keys {
+		if s, ok := args[key].(string); ok && s != "" {
+			texts = append(texts, s)
+		}
+	}
+	if len(texts) > 0 {
+		return texts
+	}
+
+	for _, v := range args {
+		if s, ok := v.(string); ok && s != "" && skillPathRe.MatchString(s) {
+			texts = append(texts, s)
+		}
+	}
+	return texts
 }

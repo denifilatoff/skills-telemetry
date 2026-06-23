@@ -1,10 +1,19 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"time"
 )
+
+// utf8BOM is the UTF-8 byte-order mark. PowerShell 5.1 prepends it when it pipes
+// a string to a native command's stdin, so a hook payload arriving through a
+// PowerShell-piped shell (e.g. Cursor on Windows: `Get-Content tmp | cmd`) is
+// preceded by these bytes. They are not valid JSON, so json.Unmarshal fails and
+// no skill is detected. Strip a single leading BOM before routing.
+var utf8BOM = []byte{0xEF, 0xBB, 0xBF}
 
 // remoteResolver returns the git remote URL for a working dir, or "" if unknown.
 // Injected so detectors stay pure and testable.
@@ -14,6 +23,7 @@ type remoteResolver func(cwd string) string
 // emits a native Skill-tool event; Codex and Cursor are detected from the
 // session transcript.
 func detect(agent string, stdin []byte, remote remoteResolver, now time.Time) ([]SkillEvent, error) {
+	stdin = bytes.TrimPrefix(stdin, utf8BOM)
 	switch agent {
 	case "claude":
 		return claudeAdapter(stdin, remote, now)
@@ -94,4 +104,54 @@ func cursorRemote(p cursorPayload, remote remoteResolver) string {
 		return ""
 	}
 	return remote(p.WorkspaceRoots[0])
+}
+
+// skillPathRe matches the tail of a path to a skill body: skills/<name>/SKILL.md.
+// It is the single source of truth shared by every transcript-scraped harness
+// (Codex, Cursor); Claude gets a structured skill name and never parses a path.
+//
+// No location anchor. The tail is matched under any parent, because global and
+// plugin skills live outside the project under arbitrary parents — e.g.
+// ~/.claude/plugins/cache/<plugin>/<version>/skills/<name>/SKILL.md, where the
+// segment before `skills` is a version number, not a dot-config dir. Any
+// folder-based anchor would miss them.
+//
+// Separators repeat ([\\/]+) so the same pattern matches `/` (Unix), a single
+// `\` (a Windows path in Cursor's input.path after JSON decode), and a doubled
+// `\\` (a Windows path embedded in a JS string literal inside Codex's
+// custom_tool_call input, where each backslash arrives doubled).
+//
+// The boundary before `skills` ((?:^|[\s"'=/\\])) requires a separator, quote,
+// `=`, whitespace, or start-of-string, so `my-skills/...` does not match while a
+// clean path and a path embedded in a shell command both do.
+//
+// (?i) lets the structural literals `skills` and `SKILL.md` match in any case,
+// for the case-insensitive filesystems on Windows (NTFS) and macOS (APFS). The
+// capture group still preserves the skill name's original case, since (?i)
+// affects matching, not the captured substring.
+var skillPathRe = regexp.MustCompile(`(?i)(?:^|[\s"'=/\\])skills[\\/]+([^\\/\s"']+)[\\/]+SKILL\.md`)
+
+// skillNameInPath returns the skill name carried by a single filesystem path, or
+// ("", false) when the path is not a skill body. Use it for a clean path such as
+// a Cursor Read tool's input.path.
+func skillNameInPath(s string) (string, bool) {
+	if m := skillPathRe.FindStringSubmatch(s); m != nil {
+		return m[1], true
+	}
+	return "", false
+}
+
+// skillNamesInText returns every skill name matched in a free-text string, in
+// order, with duplicates kept. Use it for text that may embed several paths,
+// such as a Codex shell command. It returns nil when there are no matches.
+func skillNamesInText(s string) []string {
+	matches := skillPathRe.FindAllStringSubmatch(s, -1)
+	if matches == nil {
+		return nil
+	}
+	names := make([]string, 0, len(matches))
+	for _, m := range matches {
+		names = append(names, m[1])
+	}
+	return names
 }

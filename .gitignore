@@ -2,11 +2,16 @@
 # APM dependencies
 apm_modules/
 
-# Local Codex and agent state
+# Local Codex and agent state (all APM `apm compile` output)
 .agents/
 .claude/
 .codex/
 .cursor/
+.kiro/
+.windsurf/
+.github/instructions/
+/AGENTS.md
+/GEMINI.md
 
 # Local APM workbench install (machine-specific paths; never committed)
 apm.yml

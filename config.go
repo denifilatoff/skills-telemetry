@@ -13,13 +13,54 @@ import (
 
 const pkgName = "qubership-skills-telemetry"
 
+// configBase resolves the root under which the package config dir lives. It is
+// the SAME XDG-style path on every OS — $XDG_CONFIG_HOME, else ~/.config — the
+// way the binary already lives at ~/.local/bin on every OS. This is deliberate:
+// os.UserConfigDir() returns %AppData% on Windows, which MSIX virtualizes for a
+// packaged harness (Claude Desktop), so a packaged and a plain shell would
+// resolve different config dirs. A home-relative path outside AppData is never
+// virtualized, so all harnesses share one config. Returns "" when neither a
+// config dir nor a home dir is available.
+func configBase() string {
+	return configBaseFrom(os.Getenv("XDG_CONFIG_HOME"), userHomeDir())
+}
+
+// configBaseFrom is the testable core: an explicit $XDG_CONFIG_HOME wins, else
+// fall back to <home>/.config. Empty when both inputs are empty.
+func configBaseFrom(xdg, home string) string {
+	return xdgBaseFrom(xdg, home, ".config")
+}
+
+// xdgBaseFrom is the resolution both configBaseFrom and cacheBaseFrom share: an
+// explicit $XDG_* dir wins, else fall back to <home>/<sub>. Empty when both
+// inputs are empty.
+func xdgBaseFrom(xdg, home, sub string) string {
+	if x := strings.TrimSpace(xdg); x != "" {
+		return x
+	}
+	if home == "" {
+		return ""
+	}
+	return filepath.Join(home, sub)
+}
+
+// userHomeDir is a best-effort os.UserHomeDir() that returns "" on error rather
+// than propagating one, since every caller treats an absent home as "no config".
+func userHomeDir() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	return home
+}
+
 // pkgConfigDir is the per-machine config directory holding durable provisioning
 // state: the env file, the CA certificate, the token, and the machine id. It is
-// os.UserConfigDir() across platforms (Application Support on macOS, ~/.config
-// on Linux, %AppData% on Windows). Returns "" when no config dir is available.
+// <configBase>/qubership-skills-telemetry — a uniform ~/.config path on every
+// OS. Returns "" when no config dir is available.
 func pkgConfigDir() string {
-	base, err := os.UserConfigDir()
-	if err != nil || base == "" {
+	base := configBase()
+	if base == "" {
 		return ""
 	}
 	return filepath.Join(base, pkgName)
@@ -92,11 +133,10 @@ func loadEnvFile(path string) map[string]string {
 
 // resolveToken returns the collector bearer token. It prefers the
 // SKILLS_TELEMETRY_TOKEN environment variable and falls back to a per-user
-// secret file at <UserConfigDir>/qubership-skills-telemetry/token. Empty when
+// secret file at <configBase>/qubership-skills-telemetry/token. Empty when
 // neither is set — the flush then sends no Authorization header.
 func resolveToken() string {
-	dir, _ := os.UserConfigDir()
-	return resolveTokenFrom(os.Getenv("SKILLS_TELEMETRY_TOKEN"), dir)
+	return resolveTokenFrom(os.Getenv("SKILLS_TELEMETRY_TOKEN"), configBase())
 }
 
 // resolveTokenFrom is the testable core. Precedence: the env var, then the
@@ -182,8 +222,8 @@ func caTLSConfig(configDir string) (*tls.Config, error) {
 // to tell installs apart (e.g. to spot one install skewing skill-usage counts),
 // not to identify the user. Returns "" if no config dir is available.
 func resolveMachineID() string {
-	dir, err := os.UserConfigDir()
-	if err != nil || dir == "" {
+	dir := configBase()
+	if dir == "" {
 		return ""
 	}
 	return resolveMachineIDFrom(dir)
@@ -193,7 +233,7 @@ func resolveMachineID() string {
 // or create it atomically on first run. O_EXCL guards against two concurrent
 // processes each minting a different id — the loser re-reads the winner's file.
 func resolveMachineIDFrom(configDir string) string {
-	pkgDir := filepath.Join(configDir, "qubership-skills-telemetry")
+	pkgDir := filepath.Join(configDir, pkgName)
 	path := filepath.Join(pkgDir, "machine-id")
 	if b, err := os.ReadFile(path); err == nil {
 		if id := strings.TrimSpace(string(b)); id != "" {

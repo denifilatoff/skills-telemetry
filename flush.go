@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"path/filepath"
+	"runtime"
 	"time"
 
 	"github.com/gofrs/flock"
@@ -17,6 +18,24 @@ import (
 )
 
 var errLockBusy = errors.New("flush lock busy")
+
+// resourceAttrs builds the OTLP resource attributes that describe this install:
+// service identity, build version, and the host OS, plus the anonymous machine
+// id when one is set. osType is runtime.GOOS, whose values (windows, linux,
+// darwin) already match the OpenTelemetry `os.type` semantic convention. These
+// describe the producing machine, so they live on the resource rather than on
+// each per-event log record.
+func resourceAttrs(serviceVersion, osType, machineID string) []attribute.KeyValue {
+	attrs := []attribute.KeyValue{
+		attribute.String("service.name", "qubership-skills-telemetry"),
+		attribute.String("service.version", serviceVersion),
+		attribute.String("os.type", osType),
+	}
+	if machineID != "" {
+		attrs = append(attrs, attribute.String("machine.id", machineID))
+	}
+	return attrs
+}
 
 // lockOutbox takes a non-blocking advisory lock for the outbox. The returned
 // func releases it. A nil release with errLockBusy means the lock was busy.
@@ -86,14 +105,7 @@ func Flush(s *Outbox, endpoint, token string, tlsConfig *tls.Config, timeout tim
 	if err != nil {
 		return 0, err
 	}
-	attrs := []attribute.KeyValue{
-		attribute.String("service.name", "qubership-skills-telemetry"),
-		attribute.String("service.version", version),
-	}
-	if mid := resolveMachineID(); mid != "" {
-		attrs = append(attrs, attribute.String("machine.id", mid))
-	}
-	res := resource.NewSchemaless(attrs...)
+	res := resource.NewSchemaless(resourceAttrs(version, runtime.GOOS, resolveMachineID())...)
 	provider := sdklog.NewLoggerProvider(
 		sdklog.WithProcessor(sdklog.NewSimpleProcessor(exp)),
 		sdklog.WithResource(res),

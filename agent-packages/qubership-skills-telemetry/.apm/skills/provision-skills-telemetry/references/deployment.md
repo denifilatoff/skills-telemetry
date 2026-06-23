@@ -3,19 +3,36 @@
 These values depend on where the collector runs, so the skill stays generic and asks for them
 rather than hardcoding any one deployment.
 
-## Fetch the binary
+## Install the binary
 
-Run once per machine to place the binary in the per-machine cache and start provisioning:
+Run once per machine to install the binary onto `PATH`. The installer downloads the release
+binary to `~/.local/bin/skills-telemetry` (`.exe` on Windows), verifies its checksum against the
+published `SHA256SUMS`, and adds `~/.local/bin` to `PATH`. It is idempotent and **install-only**
+— it never runs the binary.
 
 ```sh
 # macOS / Linux
-curl -fsSL https://github.com/denifilatoff/skills-telemetry/releases/latest/download/bootstrap.sh | sh -s -- provision
+curl -fsSL https://github.com/denifilatoff/skills-telemetry/releases/latest/download/bootstrap.sh | sh
 # Windows (PowerShell)
-iex "& { $(irm https://github.com/denifilatoff/skills-telemetry/releases/latest/download/bootstrap.ps1) } provision"
+iex "& { $(irm https://github.com/denifilatoff/skills-telemetry/releases/latest/download/bootstrap.ps1) }"
+```
+
+Then provision with the binary itself. Prefer the bare name (`skills-telemetry provision`); right
+after install `~/.local/bin` is not on this process's `PATH` yet, so until a restart refreshes it
+the bare name will not resolve and you fall back to the full path:
+
+```sh
+~/.local/bin/skills-telemetry provision
 ```
 
 The bootstrap scripts are published as release assets, so `releases/latest/download` always
-resolves to the current launcher.
+resolves to the current installer.
+
+The `PATH` change reaches only new processes: the bare-name hook resolves after the agent is
+restarted. Call the binary by its bare name (`skills-telemetry <cmd>`); fall back to the full
+path (`~/.local/bin/skills-telemetry <cmd>`) only while the bare name does not yet resolve in
+this just-installed session. If the installer cannot update `PATH` automatically it prints the
+line to add manually.
 
 ## Endpoint
 

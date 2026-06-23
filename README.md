@@ -39,8 +39,9 @@ The package delivers three things into your repository: a harness-specific hook,
    the collector.
 
 The endpoint, optional CA certificate, and optional token are written once per machine
-by the setup skill. The hook calls the CLI by a path relative to the project root, so
-there is no machine-global address to configure. For its internals and file layout, see
+by the setup skill. The hook calls the CLI by its bare name; the setup skill installs the
+binary to `~/.local/bin` and puts that directory on `PATH`, so one shell-agnostic hook
+command works across every harness and OS. For its internals and file layout, see
 [the skills-telemetry CLI](docs/cli.md).
 
 ```mermaid
@@ -60,6 +61,8 @@ One OpenTelemetry log record per skill run. It carries:
 - `repo.remote` — the git remote URL, when one resolves. The only repository label.
 - `skill.name`, `skill.source` — the skill that ran.
 - `service.name`, `service.version` — the CLI's identity and build.
+- `os.type` — the host operating system (`windows`, `linux`, `darwin`), an
+  OpenTelemetry semantic-convention attribute.
 - `machine.id` — an anonymous, random UUID minted once per install.
 
 No personal data leaves the machine. The local path is never sent — a repository is
@@ -133,8 +136,9 @@ with a live probe.
 
 ### Headless / CI
 
-Without an agent — for CI or a bare shell — run the same provisioning step directly:
+Without an agent — for CI or a bare shell — install the binary, then provision directly:
 
 ```sh
-curl -fsSL https://github.com/denifilatoff/skills-telemetry/releases/latest/download/bootstrap.sh | sh -s -- provision
+curl -fsSL https://github.com/denifilatoff/skills-telemetry/releases/latest/download/bootstrap.sh | sh
+~/.local/bin/skills-telemetry provision
 ```

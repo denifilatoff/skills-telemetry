@@ -15,9 +15,30 @@ a repository is the consent boundary.
   (a flat `package main`, the "Basic command" layout from the Go module-layout guide). It
   detects the skill, buffers events to a local outbox, and flushes over OTLP/HTTPS. No
   daemon. See [docs/cli.md](docs/cli.md).
+- **Invocation: the binary is on `PATH`, not behind a bootstrap wrapper.** The harness and
+  the `provision-skills-telemetry` skill call the binary directly — on a dev machine it lives
+  at `~/.local/bin/skills-telemetry` (current build reports `0.6.0-dev`). The old
+  `bootstrap.{sh,ps1,bat}` wrapper that located-or-downloaded a version-pinned release is
+  **retired**: it still pins an older tag (e.g. `v0.5.3`) and downloads into `LOCALAPPDATA`,
+  so running `status` through it reports a stale binary and a misleading version. To check
+  state, run `skills-telemetry status` / `version` against the on-`PATH` binary, never the
+  bootstrap script. **This is in a testing phase:** the direct on-`PATH` invocation is being
+  trialled across all harnesses (Codex, Claude Code, Cursor) before it replaces the bootstrap
+  wrapper everywhere — expect both paths to coexist until the rollout is confirmed.
 - **Detection:** a native hook event where the agent emits one (Claude Code), the session
   transcript otherwise (Codex, Cursor). See [docs/agent-integration.md](docs/agent-integration.md).
 - **Harnesses:** Codex, Claude Code, and Cursor are shipped (v0.5.0). OpenCode is planned.
+- **Config & cache paths: uniform XDG, not `os.UserConfigDir()`.** Durable config lives at
+  `$XDG_CONFIG_HOME` else `~/.config/qubership-skills-telemetry/` and the spool at
+  `$XDG_CACHE_HOME` else `~/.cache/qubership-skills-telemetry/` — the same path on every OS,
+  mirroring the binary's `~/.local/bin`. This is deliberate: `os.UserConfigDir()` is
+  `%AppData%` on Windows, which MSIX virtualizes for a packaged harness (Claude Desktop), so a
+  packaged and a plain shell diverged onto different config dirs. A home-relative path outside
+  `AppData` is never virtualized. Resolved in [config.go](config.go) (`configBase`) and
+  [outbox.go](outbox.go) (`cacheBase`); rationale in
+  [docs/superpowers/decisions/2026-06-23-config-cache-dir-xdg-msix.md](docs/superpowers/decisions/2026-06-23-config-cache-dir-xdg-msix.md).
+  The binary does **not** auto-migrate; the `provision-skills-telemetry` skill documents moving
+  an existing AppData/Library install to the new location.
 - **Out of scope:** the collector, gateway, and storage (VictoriaMetrics, VictoriaLogs,
   Grafana) are infrastructure.
 - **Decisions:** the main forks and why each was taken are in

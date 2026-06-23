@@ -68,15 +68,22 @@ one-liner reuses the same binary for headless and CI contexts.
 
 ## Where config and buffered events live
 
-**Decision.** Keep durable state (endpoint, token, CA, `machine.id`) in the OS config
-directory, and disposable state (the binary and the event outbox) in the cache directory.
-The full layout is in [the skills-telemetry CLI](cli.md#file-layout).
+**Decision.** Keep durable state (endpoint, token, CA, `machine.id`) in the config directory
+and disposable state (the event outbox and transcript offsets) in the cache directory. The
+binary itself is installed once on `PATH` at `~/.local/bin`, in neither. The full layout is in
+[the skills-telemetry CLI](cli.md#file-layout).
 
-**Why.** The cache is disposable by design — the binary re-downloads, and macOS purges
-`~/Library/Caches` under disk pressure. Putting the token or endpoint there would
-silently drop them and stop telemetry, so secrets and config live in the config
-directory instead. Both directories follow the platform conventions
-(`os.UserConfigDir()`, `os.UserCacheDir()`), so the CLI needs no custom path resolver.
+**Why.** The cache holds only re-creatable state — the outbox re-fills on the next turn and the
+offsets re-derive — so losing it under disk pressure is safe. Putting the token or endpoint
+there would silently drop them and stop telemetry, so secrets and config live in the config
+directory instead. Both directories resolve to **uniform XDG-style paths on every OS**
+(`$XDG_CONFIG_HOME` else `~/.config`, `$XDG_CACHE_HOME` else `~/.cache`) rather than the
+per-OS `os.UserConfigDir()` / `os.UserCacheDir()` locations. The original design used the
+stdlib paths to avoid a custom resolver, but `os.UserConfigDir()` returns `%AppData%` on
+Windows, which MSIX virtualizes for a packaged harness (Claude Desktop) — so a packaged and
+a plain shell diverged onto different config dirs. A home-relative path outside `AppData` is
+never virtualized, mirroring the binary's own `~/.local/bin`. The full record is
+[the config-dir decision](superpowers/decisions/2026-06-23-config-cache-dir-xdg-msix.md).
 
 ## Event schema and privacy
 

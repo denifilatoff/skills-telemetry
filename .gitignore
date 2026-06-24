@@ -25,8 +25,11 @@ dist/
 # Skill eval runs (local only)
 eval-workspace/
 
-# Local backend deploy (test only)
+# Local backend deploy (test only, not shipped)
 local-deploy-otel/
+
+# Real .env with secrets (the .env.example template is tracked)
+telemetry-backend/.env
 
 # Ready-made telemetry config for install testing (endpoint + token; never committed)
 /test-telemetry.env

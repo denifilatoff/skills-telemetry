@@ -117,16 +117,6 @@ dependencies:
     - denifilatoff/skills-telemetry/agent-packages/qubership-skills-telemetry#v0.6.0
 ```
 
-If the setup skill is only needed once (to provision the machine) and should not
-stay in the project's committed dependencies, install as a dev dependency instead:
-
-```sh
-apm install --dev denifilatoff/skills-telemetry/agent-packages/qubership-skills-telemetry
-```
-
-`--dev` places it under `devDependencies` in `apm.yml`, so it is available locally
-but does not ship with the project when others install your package.
-
 Then install and compile for your agent. `--target` is one of `codex`, `claude`,
 `cursor`, or `all` to cover every installed agent:
 

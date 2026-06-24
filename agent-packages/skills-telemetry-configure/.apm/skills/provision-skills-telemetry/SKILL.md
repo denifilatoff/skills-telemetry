@@ -1,6 +1,6 @@
 ---
 name: provision-skills-telemetry
-description: Set up, repair, and verify Qubership skill-usage telemetry on a machine. Use right after installing the qubership-skills-telemetry package, when skill events are not reaching the collector, when telemetry "stopped working", or whenever the user asks to provision, onboard, check, or fix skills telemetry — even phrased loosely as "is my telemetry working?" or "set up skills telemetry".
+description: Set up, repair, and verify skill-usage telemetry on a machine. Use right after installing the skills-telemetry package, when skill events are not reaching the collector, when telemetry "stopped working", or whenever the user asks to provision, onboard, check, or fix skills telemetry — even phrased loosely as "is my telemetry working?" or "set up skills telemetry".
 ---
 
 # Provision skills telemetry
@@ -52,8 +52,8 @@ When bare name fails, read *why* before escalating — the two failures take opp
   path** — it puts the path in `argv[0]`, misses the execpolicy rule, and stays sandboxed, turning
   a diagnosis into a guaranteed false negative. Instead get the binary *out* of the sandbox:
   ensure the execpolicy rule is present and loads (Codex — see "Codex sandbox rule (check)"). The
-  rule must let the binary read `~/.config/qubership-skills-telemetry/` and
-  `~/.cache/qubership-skills-telemetry/`, run `~/.local/bin/skills-telemetry`, and reach the
+  rule must let the binary read `~/.config/skills-telemetry/` and
+  `~/.cache/skills-telemetry/`, run `~/.local/bin/skills-telemetry`, and reach the
   collector endpoint over the network. Then retry — still by bare name.
 
 The corollary for hooks: **the hook fires the bare name, so it only resolves after the agent
@@ -92,10 +92,10 @@ never has to guess:
   works, `~/.local/bin` is not on this process's `PATH` yet — the install added it, but the agent
   must restart to pick it up.
 - **Config** (endpoint, token, `ca.crt`) — under the `config_dir` that `status` prints. This is
-  a uniform XDG path on every OS: `$XDG_CONFIG_HOME` else `~/.config/qubership-skills-telemetry/`
-  (`%USERPROFILE%\.config\qubership-skills-telemetry\` on Windows). Always read the live path from
+  a uniform XDG path on every OS: `$XDG_CONFIG_HOME` else `~/.config/skills-telemetry/`
+  (`%USERPROFILE%\.config\skills-telemetry\` on Windows). Always read the live path from
   `status` rather than assuming it. The outbox/offset spool sits under the cache dir
-  (`~/.cache/qubership-skills-telemetry/`); `status` reports its backlog as `buffered`, so you
+  (`~/.cache/skills-telemetry/`); `status` reports its backlog as `buffered`, so you
   rarely open it by hand.
 
 ## Workflow
@@ -131,39 +131,6 @@ Do not open, read, print, or echo the file — it may hold a token, and anything
 conversation enters the model's context. A copy moves the bytes without reading them. The
 CLI mints the anonymous `machine-id` itself on first send, so the two properties are
 enough.
-
-## Migrating from an older config location (AppData / Library)
-
-Builds before this change stored config at the OS-native `os.UserConfigDir()` location —
-`%APPDATA%\qubership-skills-telemetry\` on Windows, `~/Library/Application
-Support/qubership-skills-telemetry/` on macOS. Current builds use a uniform
-`~/.config/qubership-skills-telemetry/` on every OS (Linux was already there). **The binary
-does not auto-migrate.** After an upgrade, the new config dir is empty, so `status` reports
-`not provisioned` even though the old location still holds a working `env`.
-
-To migrate, just **re-provision into the new location** — the normal workflow writes to the
-new `~/.config` path that `status` prints. The anonymous `machine-id` is re-minted on first
-send; that is fine (it only tells installs apart). If preserving the exact id matters, copy
-the old `machine-id`, `env`, and `ca.crt` into the new `config_dir` with a file copy (never
-open them — `env` may hold a token).
-
-**Windows + Claude Desktop (the reason this changed).** Claude Desktop is an MSIX/Store app,
-and MSIX **virtualizes `%AppData%`**: a packaged harness and a plain shell each got their own
-copy of the old config under different roots — the real `%APPDATA%\qubership-skills-telemetry\`
-versus `…\Packages\Claude_*\LocalCache\Roaming\qubership-skills-telemetry\` (observed package
-family `Claude_pzs8sxrjxfjjc`). That divergence is why telemetry could look healthy inside
-Claude Desktop while Codex, Cursor, and a plain terminal silently sent nothing, with even a
-different `machine-id` per context. The new `~/.config` path is **outside `AppData`, so MSIX
-never virtualizes it** — every harness now shares one config, the same way `~/.local/bin`
-already does. After upgrading on such a machine, delete the stale copies so they don't linger
-or mislead a later check:
-
-- real `%APPDATA%\qubership-skills-telemetry\` and `%LOCALAPPDATA%\qubership-skills-telemetry\`;
-- the package-layer copies under `…\Packages\Claude_*\LocalCache\Roaming\qubership-skills-telemetry\`
-  and `…\Packages\Claude_*\LocalCache\Local\qubership-skills-telemetry\`.
-
-Re-provisioning from inside Claude Desktop no longer creates a shadow copy, because the config
-now lands in the non-virtualized `~/.config`.
 
 ## Closing gaps
 
@@ -265,7 +232,7 @@ Those entries do not define the command, but after a hook shape changes they can
 trust state around and should be cleared for the changed hook path.
 
 When the UI shows an old command, especially a removed bootstrap wrapper such as
-`.codex\hooks\qubership-skills-telemetry\scripts\bootstrap.bat ingest --agent=codex`, investigate
+`.codex\hooks\skills-telemetry-configure\scripts\bootstrap.bat ingest --agent=codex`, investigate
 in this order:
 
 1. Read the Codex project/trust state and hook state:
@@ -276,7 +243,7 @@ in this order:
    - `<repo>\.codex\hooks.json`
    - `<repo>\.claude\worktrees\<name>\.codex\hooks.json`
 3. Compare that active file with the package hook source:
-   - `agent-packages/qubership-skills-telemetry/.apm/hooks/skill-call-codex-hooks.json`
+   - the hook source in the `skills-telemetry` package (Netcracker/qubership-ai-packages)
    - both must contain only `skills-telemetry ingest --agent=codex` for the command; there should
      be no `commandWindows`, no `.codex/hooks/.../bootstrap.bat`, and no `sh ./scripts/bootstrap.sh`
      in the Codex hook.

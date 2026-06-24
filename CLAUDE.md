@@ -34,16 +34,14 @@ a repository is the consent boundary.
   transcript otherwise (Codex, Cursor). See [docs/agent-integration.md](docs/agent-integration.md).
 - **Harnesses:** Codex, Claude Code, and Cursor are shipped (v0.5.0). OpenCode is planned.
 - **Config & cache paths: uniform XDG, not `os.UserConfigDir()`.** Durable config lives at
-  `$XDG_CONFIG_HOME` else `~/.config/qubership-skills-telemetry/` and the spool at
-  `$XDG_CACHE_HOME` else `~/.cache/qubership-skills-telemetry/` — the same path on every OS,
+  `$XDG_CONFIG_HOME` else `~/.config/skills-telemetry/` and the spool at
+  `$XDG_CACHE_HOME` else `~/.cache/skills-telemetry/` — the same path on every OS,
   mirroring the binary's `~/.local/bin`. This is deliberate: `os.UserConfigDir()` is
   `%AppData%` on Windows, which MSIX virtualizes for a packaged harness (Claude Desktop), so a
   packaged and a plain shell diverged onto different config dirs. A home-relative path outside
   `AppData` is never virtualized. Resolved in [config.go](config.go) (`configBase`) and
   [outbox.go](outbox.go) (`cacheBase`); rationale in
-  [docs/superpowers/decisions/2026-06-23-config-cache-dir-xdg-msix.md](docs/superpowers/decisions/2026-06-23-config-cache-dir-xdg-msix.md).
-  The binary does **not** auto-migrate; the `provision-skills-telemetry` skill documents moving
-  an existing AppData/Library install to the new location.
+  [docs/adr/0003-config-cache-dirs-xdg.md](docs/adr/0003-config-cache-dirs-xdg.md).
 - **Out of scope:** the collector, gateway, and storage (VictoriaMetrics, VictoriaLogs,
   Grafana) are infrastructure.
 - **Decisions:** the main forks and why each was taken are in
@@ -107,4 +105,4 @@ untracked files not yet committed. Remove the listed paths explicitly.
   invoked manually. There is no hook or scheduled trigger yet; users must run the
   skill to discover a newer binary.
 - **Dashboards.** The OTLP `service.name` changed from `qubership-skills-telemetry-sender`
-  to `qubership-skills-telemetry`; update the Grafana key that still references the old value.
+  to `skills-telemetry`; update the Grafana key that still references the old value.

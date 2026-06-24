@@ -14,7 +14,7 @@ status, ISO 8601 dates, and immutable accepted records superseded by new ones.
 
 ## Note
 
-This package doubles as the instrumented test skill for `qubership-skills-telemetry`.
+This package doubles as the instrumented test skill for `skills-telemetry`.
 The CLI detects its `SKILL.md` activation from the session transcript — so the
 package also proves the pipeline detects an arbitrary third-party skill, not only
 the CLI's own self-test.

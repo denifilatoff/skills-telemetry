@@ -87,7 +87,7 @@ jobs:
         # release tag into BINARY_VERSION so each release's launcher pins its own
         # binary — it cannot lag behind a hardcoded value.
         run: |
-          src=agent-packages/qubership-skills-telemetry/.apm/hooks/scripts
+          src=agent-packages/skills-telemetry-configure/.apm/hooks/scripts
           sed "s|^BINARY_VERSION=.*|BINARY_VERSION=\"${VERSION}\"|" "$src/bootstrap.sh" > dist/bootstrap.sh
           sed "s|^\$BinaryVersion = .*|\$BinaryVersion = '${VERSION}'|" "$src/bootstrap.ps1" > dist/bootstrap.ps1
       - name: Checksums
@@ -122,8 +122,8 @@ jobs:
           ref: ${{ github.event.repository.default_branch }}
       - name: Sync version references to ${{ env.VERSION }}
         run: |
-          sed -i -E "s|(qubership-skills-telemetry)#v[0-9]+\.[0-9]+\.[0-9]+|\1#${VERSION}|g" README.md
-          src=agent-packages/qubership-skills-telemetry/.apm/hooks/scripts
+          sed -i -E "s|(skills-telemetry-configure)#v[0-9]+\.[0-9]+\.[0-9]+|\1#${VERSION}|g" README.md
+          src=agent-packages/skills-telemetry-configure/.apm/hooks/scripts
           sed -i "s|^BINARY_VERSION=.*|BINARY_VERSION=\"${VERSION}\"|" "$src/bootstrap.sh"
           sed -i "s|^\$BinaryVersion = .*|\$BinaryVersion = '${VERSION}'|" "$src/bootstrap.ps1"
       - name: Commit if changed

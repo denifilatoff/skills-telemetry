@@ -62,8 +62,8 @@ The full analysis is in
 
 We will resolve both directories to **uniform XDG-style paths on every OS**:
 
-- **Config:** `$XDG_CONFIG_HOME` else `~/.config/qubership-skills-telemetry/`
-- **Cache:** `$XDG_CACHE_HOME` else `~/.cache/qubership-skills-telemetry/`
+- **Config:** `$XDG_CONFIG_HOME` else `~/.config/skills-telemetry/`
+- **Cache:** `$XDG_CACHE_HOME` else `~/.cache/skills-telemetry/`
 
 On Windows these are `%USERPROFILE%\.config\…` and `%USERPROFILE%\.cache\…` — outside `AppData`, so MSIX never
 virtualizes them. On Linux the paths are identical to what `os.UserConfigDir()` and `os.UserCacheDir()` already
@@ -86,8 +86,7 @@ Three alternatives were considered:
 2. **Auto-migrate in the binary** — copy the old `AppData` or `~/Library` config into `~/.config` on first
    run. Convenient, but adds path-resolution side effects and race conditions to a hot hook path. On Windows
    there are two diverged copies (real `AppData` and virtualized package layer) and the binary would have to
-   guess which to keep. Rejected — migration is a provisioning concern documented in the skill, not binary
-   behavior.
+   guess which to keep. Rejected — adds complexity for a one-time edge case.
 3. **Keep `os.UserConfigDir()` everywhere and document the MSIX limitation.** The limitation is invisible: the
    user provisions successfully from Claude Desktop, sees "ok," and has no reason to suspect other harnesses
    are broken. Documentation does not fix an invisible problem.
@@ -99,15 +98,9 @@ Homebrew-installed tools that follow the XDG convention), so the path is not ali
 
 ## Consequences
 
-- **No auto-migration.** After an upgrade, an existing machine finds an empty `~/.config` directory and
-  `skills-telemetry status` reports `not provisioned`. The user re-provisions via the setup skill; optionally
-  copies `machine-id`, `env`, and `ca.crt` from the old location to preserve the install identity. The setup
-  skill documents this.
-- **`status` is honest.** The printed config path (`~/.config/qubership-skills-telemetry/`) is the same in
+- **`status` is honest.** The printed config path (`~/.config/skills-telemetry/`) is the same in
   every context — Claude Desktop, Codex, Cursor, plain terminal. The misleading `AppData\Roaming` report is
   gone.
-- **macOS config moves.** Config previously at `~/Library/Application Support/qubership-skills-telemetry/`
-  moves to `~/.config/qubership-skills-telemetry/`. This is a one-time re-provision, the same as on Windows.
 - **Spool moves to `~/.cache`.** A few buffered, unsent events in the old cache directory are abandoned on
   upgrade. This is acceptable — the spool is disposable by design and re-fills on the next agent turn.
 - **`os.UserConfigDir()` and `os.UserCacheDir()` are no longer used anywhere** in the binary. Test isolation

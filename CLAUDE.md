@@ -99,5 +99,8 @@ untracked files not yet committed. Remove the listed paths explicitly.
 - **OpenCode adapter** — the fourth harness. A native `use_skill` tool call via the
   `.claude/skills/` compatibility extension, the same path as Claude Code.
 - **Outbox housekeeping** — offset-file garbage collection is not implemented.
+- **Automatic updates** — `update-check` runs only when the provision skill is
+  invoked manually. There is no hook or scheduled trigger yet; users must run the
+  skill to discover a newer binary.
 - **Dashboards.** The OTLP `service.name` changed from `qubership-skills-telemetry-sender`
   to `qubership-skills-telemetry`; update the Grafana key that still references the old value.

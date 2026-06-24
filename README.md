@@ -72,7 +72,8 @@ or the hardware. The schema and the reasoning behind it are in
 
 ## Backend requirements
 
-The collector is out of scope for this repository, but the CLI expects:
+Any collector that meets these requirements works. A ready-to-deploy reference
+stack is in [`telemetry-backend/`](telemetry-backend/README.md). The CLI expects:
 
 - **OTLP/HTTP ingest** for OpenTelemetry logs.
 - **HTTPS only.** The CLI never falls back to plaintext, never skips certificate
@@ -85,6 +86,7 @@ The collector is out of scope for this repository, but the CLI expects:
 - [Design decisions](docs/design-decisions.md) — the main forks and why each was taken.
 - [Agent integration](docs/agent-integration.md) — how each agent's skill runs are caught.
 - [The skills-telemetry CLI](docs/cli.md) — the command reference, internals, and file layout.
+- [Collector backend](telemetry-backend/README.md) — deploy the observability stack (Caddy, OTel Collector, VictoriaLogs) on a VM or locally.
 
 ## Installation
 
@@ -115,6 +117,16 @@ dependencies:
     - denifilatoff/skills-telemetry/agent-packages/qubership-skills-telemetry#v0.6.0
 ```
 
+If the setup skill is only needed once (to provision the machine) and should not
+stay in the project's committed dependencies, install as a dev dependency instead:
+
+```sh
+apm install --dev denifilatoff/skills-telemetry/agent-packages/qubership-skills-telemetry
+```
+
+`--dev` places it under `devDependencies` in `apm.yml`, so it is available locally
+but does not ship with the project when others install your package.
+
 Then install and compile for your agent. `--target` is one of `codex`, `claude`,
 `cursor`, or `all` to cover every installed agent:
 
@@ -134,11 +146,51 @@ Restart your agent, then ask it to "set up skills telemetry". The bundled
 where the collector needs one), writes the per-machine config, and verifies the pipeline
 with a live probe.
 
-### Headless / CI
+### Manual provisioning
 
-Without an agent — for CI or a bare shell — install the binary, then provision directly:
+The setup skill is the easiest path, but you can provision the CLI by hand. You
+need three things from whoever runs the collector: the endpoint URL, a CA
+certificate (only if the collector uses a private CA), and a token (only if the
+collector requires one).
+
+**Install the binary** (skip if the setup skill already placed it):
 
 ```sh
 curl -fsSL https://github.com/denifilatoff/skills-telemetry/releases/latest/download/bootstrap.sh | sh
-~/.local/bin/skills-telemetry provision
 ```
+
+This puts the binary at `~/.local/bin/skills-telemetry` (`.exe` on Windows),
+verifies the download checksum, and adds `~/.local/bin` to the user `PATH`. On
+Windows, run the command in Git Bash. Open a new terminal so the updated `PATH`
+takes effect.
+
+**Provision the endpoint and token:**
+
+```sh
+skills-telemetry provision --endpoint=https://<collector-host>/v1/logs
+# Token (leave empty if none): <paste token, press Enter — input is hidden>
+```
+
+The binary reads the token from the terminal without echo, so it never appears on
+screen or in shell history. If the collector does not require a token, press Enter
+on an empty prompt.
+
+**Add a private CA** (only when the collector's certificate is not publicly trusted):
+
+```sh
+skills-telemetry provision --ca=<path-to-ca.crt>
+```
+
+**Verify:**
+
+```sh
+skills-telemetry status    # check config: endpoint, CA, provisioned verdict
+skills-telemetry selftest  # send a probe event and confirm the collector accepted it
+```
+
+`status` is read-only — it shows the config directory, endpoint, whether a CA is
+present, and the outbox backlog. `selftest` sends one real event and reports
+whether it left the outbox. Both must pass before telemetry is live.
+
+After provisioning, restart your agent (fully quit the app or close the terminal
+tab — a new chat is not enough) so the hook resolves the binary by its bare name.

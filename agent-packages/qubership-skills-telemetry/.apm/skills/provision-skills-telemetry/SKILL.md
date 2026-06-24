@@ -201,6 +201,10 @@ iex "& { $(irm https://github.com/denifilatoff/skills-telemetry/releases/latest/
 Then re-run `update-check` to confirm `installed:` matches `latest:`, and tell the user to
 restart the agent so the hook picks up the new binary.
 
+In a sandboxed environment (Codex) the command reports `latest: unknown` because the execpolicy
+allowlist excludes `update-check` by design. Don't treat that as "no update" — ask the user to
+escalate out of the sandbox or run the command in a regular terminal.
+
 This is the skill-driven check: it surfaces updates whenever the skill happens to run. Triggering
 the skill *automatically* on a cadence (for example a periodic "new version available?" nudge
 every few sessions) is separate and not wired yet.

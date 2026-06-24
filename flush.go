@@ -27,7 +27,7 @@ var errLockBusy = errors.New("flush lock busy")
 // each per-event log record.
 func resourceAttrs(serviceVersion, osType, machineID string) []attribute.KeyValue {
 	attrs := []attribute.KeyValue{
-		attribute.String("service.name", "qubership-skills-telemetry"),
+		attribute.String("service.name", "skills-telemetry"),
 		attribute.String("service.version", serviceVersion),
 		attribute.String("os.type", osType),
 	}
@@ -113,7 +113,7 @@ func Flush(s *Outbox, endpoint, token string, tlsConfig *tls.Config, timeout tim
 	// The instrumentation scope duplicates service.* for a self-emitting binary;
 	// at least carry the build version so scope.version is not "unknown".
 	logger := provider.Logger(
-		"qubership-skills-telemetry",
+		"skills-telemetry",
 		otellog.WithInstrumentationVersion(version),
 	)
 

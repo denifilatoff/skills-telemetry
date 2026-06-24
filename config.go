@@ -11,7 +11,7 @@ import (
 	"strings"
 )
 
-const pkgName = "qubership-skills-telemetry"
+const pkgName = "skills-telemetry"
 
 // configBase resolves the root under which the package config dir lives. It is
 // the SAME XDG-style path on every OS — $XDG_CONFIG_HOME, else ~/.config — the
@@ -56,7 +56,7 @@ func userHomeDir() string {
 
 // pkgConfigDir is the per-machine config directory holding durable provisioning
 // state: the env file, the CA certificate, the token, and the machine id. It is
-// <configBase>/qubership-skills-telemetry — a uniform ~/.config path on every
+// <configBase>/skills-telemetry — a uniform ~/.config path on every
 // OS. Returns "" when no config dir is available.
 func pkgConfigDir() string {
 	base := configBase()
@@ -133,7 +133,7 @@ func loadEnvFile(path string) map[string]string {
 
 // resolveToken returns the collector bearer token. It prefers the
 // SKILLS_TELEMETRY_TOKEN environment variable and falls back to a per-user
-// secret file at <configBase>/qubership-skills-telemetry/token. Empty when
+// secret file at <configBase>/skills-telemetry/token. Empty when
 // neither is set — the flush then sends no Authorization header.
 func resolveToken() string {
 	return resolveTokenFrom(os.Getenv("SKILLS_TELEMETRY_TOKEN"), configBase())

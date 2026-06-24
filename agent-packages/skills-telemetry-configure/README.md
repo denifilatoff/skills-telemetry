@@ -1,8 +1,8 @@
-# qubership-skills-telemetry
+# skills-telemetry-configure
 
-This package delivers a harness-specific hook, the `skills-telemetry` CLI, and
-the setup skill into a repository. The hook detects when a skill runs and records
-one event per run.
+This package delivers the setup skill and bootstrap scripts for the
+`skills-telemetry` CLI. The setup skill provisions per-machine config and
+verifies delivery.
 
 Supported agents: Codex, Claude Code, and Cursor. An OpenCode adapter is
 follow-up work.
@@ -15,7 +15,7 @@ Install the APM CLI first ([uv](https://docs.astral.sh/uv/):
 Via the APM command:
 
 ```sh
-apm install denifilatoff/skills-telemetry/agent-packages/qubership-skills-telemetry
+apm install Netcracker/qubership-ai-packages/agent-packages/skills-telemetry
 ```
 
 Or add the dependency to your `apm.yml`, pinned to a tag from the
@@ -24,7 +24,7 @@ Or add the dependency to your `apm.yml`, pinned to a tag from the
 ```yaml
 dependencies:
   apm:
-    - denifilatoff/skills-telemetry/agent-packages/qubership-skills-telemetry#vX.Y.Z
+    - Netcracker/qubership-ai-packages/agent-packages/skills-telemetry
 ```
 
 Then install and compile for your agent — `--target` is one of `codex`, `claude`,

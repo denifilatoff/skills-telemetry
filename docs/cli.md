@@ -81,15 +81,14 @@ per-OS `os.UserConfigDir()` / `os.UserCacheDir()` locations. The reasoning is in
 | Location | Path | Holds |
 |---|---|---|
 | **Binary** (on `PATH`) | `~/.local/bin/skills-telemetry` (`.exe` on Windows) | the CLI itself, placed there by the setup skill so the hook resolves it by bare name |
-| **Config** (durable) | `$XDG_CONFIG_HOME` else `~/.config/qubership-skills-telemetry/` | `env` (endpoint, token), `ca.crt` (optional private CA), `machine-id` (anonymous install UUID) |
-| **Cache** (disposable) | `$XDG_CACHE_HOME` else `~/.cache/qubership-skills-telemetry/` | `outbox/` (one JSON file per event, plus `.lastflush` and `.flush.lock`), `offsets/` (per-session transcript offsets) |
+| **Config** (durable) | `$XDG_CONFIG_HOME` else `~/.config/skills-telemetry/` | `env` (endpoint, token), `ca.crt` (optional private CA), `machine-id` (anonymous install UUID) |
+| **Cache** (disposable) | `$XDG_CACHE_HOME` else `~/.cache/skills-telemetry/` | `outbox/` (one JSON file per event, plus `.lastflush` and `.flush.lock`), `offsets/` (per-session transcript offsets) |
 
 All three are the same path on every OS, including Windows (`%USERPROFILE%\.config\…`,
 `%USERPROFILE%\.cache\…`). This is deliberate: `os.UserConfigDir()` returns `%AppData%` on
 Windows, which MSIX **virtualizes** for a packaged harness (Claude Desktop), so a packaged
 and a plain shell would resolve different config dirs and silently diverge. A home-relative
 path outside `AppData` is never virtualized, so every harness shares one config — the same
-reason `~/.local/bin\skills-telemetry.exe` already works for all harnesses. On Linux these
-paths are identical to what `os.UserConfigDir()` / `os.UserCacheDir()` returned, so nothing
-changes there. Config holds anything that must survive — losing it stops telemetry — so the
-token and endpoint never live in the cache, which the OS may purge under disk pressure.
+reason `~/.local/bin\skills-telemetry.exe` already works for all harnesses. Config holds
+anything that must survive — losing it stops telemetry — so the token and endpoint never live
+in the cache, which the OS may purge under disk pressure.

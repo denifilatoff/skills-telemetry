@@ -62,7 +62,7 @@ func TestParseEnvSkipsBlanksCommentsAndTrims(t *testing.T) {
 }
 
 func TestLoadEnvFileMissingReturnsEmpty(t *testing.T) {
-	got := loadEnvFile(filepath.Join(t.TempDir(), "qubership-skills-telemetry", "env"))
+	got := loadEnvFile(filepath.Join(t.TempDir(), "skills-telemetry", "env"))
 	if len(got) != 0 {
 		t.Fatalf("len = %d, want 0 for missing file", len(got))
 	}
@@ -88,7 +88,7 @@ func TestResolveTokenFromEnvWins(t *testing.T) {
 
 func TestResolveTokenFromFileFallback(t *testing.T) {
 	dir := t.TempDir()
-	pkgDir := filepath.Join(dir, "qubership-skills-telemetry")
+	pkgDir := filepath.Join(dir, "skills-telemetry")
 	if err := os.MkdirAll(pkgDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -102,7 +102,7 @@ func TestResolveTokenFromFileFallback(t *testing.T) {
 
 func TestResolveTokenFromEnvFile(t *testing.T) {
 	dir := t.TempDir()
-	pkgDir := filepath.Join(dir, "qubership-skills-telemetry")
+	pkgDir := filepath.Join(dir, "skills-telemetry")
 	if err := os.MkdirAll(pkgDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
@@ -116,7 +116,7 @@ func TestResolveTokenFromEnvFile(t *testing.T) {
 
 func TestResolveTokenEnvFileBeatsLegacyTokenFile(t *testing.T) {
 	dir := t.TempDir()
-	pkgDir := filepath.Join(dir, "qubership-skills-telemetry")
+	pkgDir := filepath.Join(dir, "skills-telemetry")
 	if err := os.MkdirAll(pkgDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
@@ -232,7 +232,7 @@ func TestResolveMachineIDMintsAndPersists(t *testing.T) {
 	if !uuidV4Re.MatchString(id) {
 		t.Fatalf("not a v4 UUID: %q", id)
 	}
-	path := filepath.Join(dir, "qubership-skills-telemetry", "machine-id")
+	path := filepath.Join(dir, "skills-telemetry", "machine-id")
 	b, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("id not persisted: %v", err)

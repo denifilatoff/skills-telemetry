@@ -7,7 +7,7 @@ targets and the rule is missing or inert, and you need to write or repair it.
 
 Codex runs hook commands and tool calls in a **sandbox** that, by default, denies the binary the
 two things telemetry needs: read access to the machine-level config outside the project
-(`~/.config/qubership-skills-telemetry/`) and network egress to the collector. The tell is a
+(`~/.config/skills-telemetry/`) and network egress to the collector. The tell is a
 **Codex-only** failure: inside Codex, `status` reports `endpoint: (unset)` / `not provisioned` and
 `selftest` fails with `no endpoint`, while the *same* binary run from Claude Code or a plain shell
 reports `provisioned` and delivers; `update-check` reporting `latest: unknown` is the same sandbox

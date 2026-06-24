@@ -18,7 +18,7 @@ func TestResourceAttrsCarriesOSType(t *testing.T) {
 	if got["os.type"] != "windows" {
 		t.Fatalf("os.type = %q, want windows", got["os.type"])
 	}
-	if got["service.name"] != "qubership-skills-telemetry" {
+	if got["service.name"] != "skills-telemetry" {
 		t.Fatalf("service.name = %q", got["service.name"])
 	}
 	if got["service.version"] != "1.2.3" {

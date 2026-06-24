@@ -114,7 +114,7 @@ Or add the dependency to your `apm.yml`:
 ```yaml
 dependencies:
   apm:
-    - denifilatoff/skills-telemetry/agent-packages/qubership-skills-telemetry#v0.6.0
+    - denifilatoff/skills-telemetry/agent-packages/qubership-skills-telemetry#v0.6.1
 ```
 
 Then install and compile for your agent. `--target` is one of `codex`, `claude`,

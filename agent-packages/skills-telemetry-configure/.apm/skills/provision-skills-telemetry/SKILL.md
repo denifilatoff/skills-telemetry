@@ -145,6 +145,25 @@ enough.
   Don't ask the user to paste the token to you, and don't type it yourself — anything in this
   conversation becomes part of the model's context and would leak the secret.
 
+## Upgrading from v0.6.x or earlier to v0.7.0+
+
+v0.7.0 renamed the config and cache directories from `qubership-skills-telemetry` to
+`skills-telemetry`. After the binary is updated, `status` reports `not provisioned` because it
+looks at the new path. The old config is still on disk — move it, don't re-provision:
+
+```sh
+# macOS / Linux
+mv ~/.config/qubership-skills-telemetry ~/.config/skills-telemetry
+mv ~/.cache/qubership-skills-telemetry  ~/.cache/skills-telemetry
+
+# Windows (PowerShell)
+Move-Item "$env:USERPROFILE\.config\qubership-skills-telemetry" "$env:USERPROFILE\.config\skills-telemetry"
+Move-Item "$env:USERPROFILE\.cache\qubership-skills-telemetry"  "$env:USERPROFILE\.cache\skills-telemetry"
+```
+
+Then run `skills-telemetry status` — it should show `provisioned` with the existing endpoint and
+token. Run `selftest` to confirm delivery. No re-provision or restart needed.
+
 ## Updating
 
 Run `skills-telemetry update-check` at the end of every run — provisioning, repair, or a plain

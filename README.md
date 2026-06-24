@@ -53,7 +53,7 @@ One OpenTelemetry log record per skill run:
 - `agent` — the harness (`codex`, `claude`, `cursor`).
 - `session.id` — the agent's session identifier.
 - `repo.remote` — the git remote URL. The only repository label.
-- `skill.name`, `skill.source` — the skill that ran.
+- `skill.name` — the skill that ran.
 - `service.name`, `service.version` — the CLI's identity and build.
 - `os.type` — the host OS (`windows`, `linux`, `darwin`).
 - `machine.id` — an anonymous, random UUID minted once per install.
@@ -75,7 +75,7 @@ Any collector that meets these requirements works. A ready-to-deploy reference s
 
 ## Documentation
 
-- [Design decisions](docs/design-decisions.md) — the main forks and why each was taken.
+- [Architecture decision records](docs/adr/) — the main forks and why each was taken.
 - [Agent integration](docs/agent-integration.md) — how each agent's skill runs are caught.
 - [The skills-telemetry CLI](docs/cli.md) — command reference, internals, and file layout.
 - [Collector backend](telemetry-backend/README.md) — deploy the observability stack

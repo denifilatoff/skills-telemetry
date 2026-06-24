@@ -33,7 +33,7 @@ names are deduplicated, so a skill read by several commands counts once. The exa
 rule differs per agent — see each section below.
 
 The CLI does not rely on a marker printed into the model's response — see
-[the design decision](design-decisions.md#no-marker-in-the-skill-output).
+[ADR 0001](adr/0001-skill-detection-via-hooks-and-transcripts.md).
 
 ## Claude Code
 

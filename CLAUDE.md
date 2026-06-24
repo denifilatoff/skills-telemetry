@@ -47,8 +47,7 @@ a repository is the consent boundary.
 - **Out of scope:** the collector, gateway, and storage (VictoriaMetrics, VictoriaLogs,
   Grafana) are infrastructure.
 - **Decisions:** the main forks and why each was taken are in
-  [docs/design-decisions.md](docs/design-decisions.md); historical records sit under
-  `docs/superpowers/`.
+  [docs/adr/](docs/adr/); historical records sit under `docs/superpowers/`.
 
 ## Conventions
 

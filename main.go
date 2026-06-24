@@ -240,5 +240,5 @@ func gitRemote(cwd string) string {
 	if err != nil {
 		return ""
 	}
-	return strings.TrimSpace(string(out))
+	return sanitizeRemote(strings.TrimSpace(string(out)))
 }

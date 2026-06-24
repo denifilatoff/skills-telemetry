@@ -114,6 +114,34 @@ func TestDetectCursorFromTranscript(t *testing.T) {
 	}
 }
 
+func TestSanitizeRemote(t *testing.T) {
+	cases := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{"empty", "", ""},
+		{"https clean", "https://github.com/org/repo.git", "https://github.com/org/repo.git"},
+		{"https user", "https://username@github.com/org/repo.git", "https://github.com/org/repo.git"},
+		{"https user+token", "https://username:ghp_xxxx@github.com/org/repo.git", "https://github.com/org/repo.git"},
+		{"https oauth gitlab", "https://oauth2:glpat-xxxx@gitlab.com/org/repo.git", "https://gitlab.com/org/repo.git"},
+		{"http user+pass", "http://user:pass@example.com/repo.git", "http://example.com/repo.git"},
+		{"ssh url clean", "ssh://git@host/org/repo.git", "ssh://host/org/repo.git"},
+		{"ssh url with port", "ssh://deploy@host:2222/repo.git", "ssh://host:2222/repo.git"},
+		{"scp-like", "git@github.com:org/repo.git", "git@github.com:org/repo.git"},
+		{"git protocol", "git://host/repo.git", "git://host/repo.git"},
+		{"file url", "file:///path/to/repo.git", "file:///path/to/repo.git"},
+		{"local path", "/path/to/repo.git", "/path/to/repo.git"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := sanitizeRemote(c.in); got != c.want {
+				t.Fatalf("sanitizeRemote(%q) = %q, want %q", c.in, got, c.want)
+			}
+		})
+	}
+}
+
 func TestSkillNameInPath(t *testing.T) {
 	cases := []struct {
 		name string

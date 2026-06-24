@@ -4,9 +4,24 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"regexp"
 	"time"
 )
+
+// sanitizeRemote strips the userinfo component (username, password, token)
+// from a git remote URL to prevent PII and credential leakage.
+func sanitizeRemote(raw string) string {
+	if raw == "" {
+		return ""
+	}
+	u, err := url.Parse(raw)
+	if err != nil || u.Scheme == "" || u.User == nil {
+		return raw
+	}
+	u.User = nil
+	return u.String()
+}
 
 // utf8BOM is the UTF-8 byte-order mark. PowerShell 5.1 prepends it when it pipes
 // a string to a native command's stdin, so a hook payload arriving through a

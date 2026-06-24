@@ -123,7 +123,7 @@ func processCodexLine(line string, emit bool, out *codexScan, seen map[string]bo
 			} `json:"git"`
 		}
 		if json.Unmarshal(env.Payload, &m) == nil && m.Git.RepositoryURL != "" {
-			out.repoRemote = m.Git.RepositoryURL
+			out.repoRemote = sanitizeRemote(m.Git.RepositoryURL)
 		}
 	case "response_item":
 		if !emit {

@@ -8,9 +8,14 @@ what an agent needs beyond the README: orientation, conventions, and open work.
 ## Orientation
 
 Skill-usage telemetry for AI coding agents. A skill run is detected per harness, sent to a
-shared OpenTelemetry collector, and packaged through APM so that installing the package into
+shared OpenTelemetry collector, and packaged through APM so that installing the hooks into
 a repository is the consent boundary.
 
+- **Two packages.** The hooks that fire the CLI live in
+  [`Netcracker/qubership-ai-packages`](https://github.com/Netcracker/qubership-ai-packages/tree/main/agent-packages/skills-telemetry)
+  as the `skills-telemetry` package. The setup skill and bootstrap scripts live here as
+  `skills-telemetry-configure` (under `agent-packages/`). Consumers add the hooks package
+  to their `apm.yml`; the configure package is a dev dependency for first-time provisioning.
 - **Component:** the `skills-telemetry` CLI — a small Go binary at the repository root
   (a flat `package main`, the "Basic command" layout from the Go module-layout guide). It
   detects the skill, buffers events to a local outbox, and flushes over OTLP/HTTPS. No

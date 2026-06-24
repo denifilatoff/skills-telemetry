@@ -45,14 +45,19 @@ touching what the model prints, so we drop the marker entirely.
 
 ## Delivery and the consent boundary
 
-**Decision.** Ship the hook and the `skills-telemetry` CLI as one APM package, installed
-per repository. Installing it is the consent to send telemetry.
+**Decision.** Ship the hooks and the setup skill as two APM packages. The hooks
+(`skills-telemetry` in
+[`Netcracker/qubership-ai-packages`](https://github.com/Netcracker/qubership-ai-packages/tree/main/agent-packages/skills-telemetry))
+are the package a repository depends on — installing it is the consent to send telemetry.
+The setup skill (`skills-telemetry-configure` in this repository) is a dev dependency
+for first-time provisioning on a new machine.
 
-**Why.** APM is project-scoped, so installing into a work repository keeps the scope
-narrow and separates work from non-work usage. The CLI rides along as a package
-resource and the hook calls it by a path relative to the project root, so there is no
-machine-global install to manage. The collector address is fixed in the hook text, so
-where the data goes is visible and not configurable.
+**Why.** The hooks are the same across every repository — three small JSON files, one per
+harness. Hosting them in the shared Qubership marketplace lets any Qubership repository
+add telemetry with a single `apm install` and no dependency on this CLI repository. The
+setup skill and bootstrap scripts change with CLI releases, so they stay alongside the
+CLI source. The hook calls the CLI by its bare name on `PATH`, so one hook command works
+across every harness and OS.
 
 ## Provisioning the per-machine config
 

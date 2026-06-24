@@ -5,10 +5,11 @@ everywhere; what differs is the hook the agent offers and how much it tells us.
 
 ## The shared path
 
-The APM package registers one harness-specific hook. The hook calls the
-`skills-telemetry` CLI by its bare name — `skills-telemetry ingest --agent=<name>` — so
-the binary must be on `PATH`; the setup skill installs it to `~/.local/bin` and puts that
-directory on `PATH`. A bare command name is shell-agnostic, which is what makes one hook
+The hooks package
+([`skills-telemetry`](https://github.com/Netcracker/qubership-ai-packages/tree/main/agent-packages/skills-telemetry))
+registers one harness-specific hook. The hook calls the `skills-telemetry` CLI by its
+bare name — `skills-telemetry ingest --agent=<name>` — so the binary must be on `PATH`;
+the setup skill installs it to `~/.local/bin` and puts that directory on `PATH`. A bare command name is shell-agnostic, which is what makes one hook
 work across every harness and OS (Git Bash, PowerShell, and `cmd.exe` on Windows; POSIX
 `sh` elsewhere). The CLI reads the agent's payload on stdin, detects any skill that ran,
 queues the event to an on-disk outbox, and flushes opportunistically over OTLP/HTTPS. It

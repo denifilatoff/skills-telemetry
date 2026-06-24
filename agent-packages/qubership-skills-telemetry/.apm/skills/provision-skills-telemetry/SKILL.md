@@ -198,8 +198,10 @@ curl -fsSL https://github.com/denifilatoff/skills-telemetry/releases/latest/down
 iex "& { $(irm https://github.com/denifilatoff/skills-telemetry/releases/latest/download/bootstrap.ps1) } --force"      # Windows
 ```
 
-Then re-run `update-check` to confirm `installed:` matches `latest:`, and tell the user to
-restart the agent so the hook picks up the new binary.
+Then re-run `update-check` to confirm `installed:` matches `latest:`. No agent restart is
+needed — the installer replaces the binary in place at `~/.local/bin/skills-telemetry`, and
+the bare name already resolves from a previous install, so the hook picks up the new version
+immediately.
 
 In a sandboxed environment (Codex) the command reports `latest: unknown` because the execpolicy
 allowlist excludes `update-check` by design. Don't treat that as "no update" — ask the user to

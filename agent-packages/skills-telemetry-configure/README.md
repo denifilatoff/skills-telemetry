@@ -82,6 +82,3 @@ windows, each for amd64 and arm64), writes `SHA256SUMS`, and attaches every
 artifact to a GitHub Release. `bootstrap.sh` and `bootstrap.ps1` download
 `skills-telemetry-<os>-<arch>` from that release; the workflow stamps
 `BINARY_VERSION` in both scripts to match the tag.
-
-Checksum verification in the bootstrap scripts is follow-up work; the release
-already publishes `SHA256SUMS` for it.

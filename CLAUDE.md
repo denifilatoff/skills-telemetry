@@ -28,7 +28,7 @@ a repository is the consent boundary.
   so running `status` through it reports a stale binary and a misleading version. To check
   state, run `skills-telemetry status` / `version` against the on-`PATH` binary, never the
   bootstrap script. **This is in a testing phase:** the direct on-`PATH` invocation is being
-  trialled across all harnesses (Codex, Claude Code, Cursor) before it replaces the bootstrap
+  trialed across all harnesses (Codex, Claude Code, Cursor) before it replaces the bootstrap
   wrapper everywhere — expect both paths to coexist until the rollout is confirmed.
 - **Detection:** a native hook event where the agent emits one (Claude Code), the session
   transcript otherwise (Codex, Cursor). See [docs/agent-integration.md](docs/agent-integration.md).
@@ -60,11 +60,9 @@ a repository is the consent boundary.
 - **Present design forks via AskUserQuestion**, recommendation first, and expect the
   recommendation to be challenged.
 - **APM gotchas.** Install with `apm install --target <codex|claude|cursor|all>`, then
-  `apm compile`. Cursor needs `.cursor/` to exist before install, and a fresh `apm install`
-  drops the required top-level `version` from `.cursor/hooks.json` — re-add `"version": 1`
-  until [microsoft/apm#1823](https://github.com/microsoft/apm/issues/1823) ships. APM-generated
-  artifacts (`apm_modules/`, `.agents/`, `.codex/`, `.claude/`, `.cursor/`, `apm.lock.yaml`)
-  are gitignored; do not commit them.
+  `apm compile`. Cursor needs `.cursor/` to exist before install. APM-generated artifacts
+  (`apm_modules/`, `.agents/`, `.codex/`, `.claude/`, `.cursor/`, `apm.lock.yaml`) are
+  gitignored; do not commit them.
 
 ## Git workflow
 

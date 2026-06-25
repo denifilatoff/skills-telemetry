@@ -209,7 +209,8 @@ every few sessions) is separate and not wired yet.
 | connection refused / timeout | network or VPN | confirm the user can reach the collector host |
 | 401 / 403 | token missing or rejected | `provision`, enter the token at the no-echo prompt |
 | spool growing, flush failing | one of the above | fix the reported cause, then `selftest` |
-| `selftest` passes but real skill runs send nothing | the harness hook is not wired (never installed, or Cursor lost its top-level `version`) | confirm and repair the hook (see "Confirm the hook is wired") |
+| `selftest` passes but real skill runs send nothing | the harness hook is not wired (never installed) | confirm and repair the hook (see "Confirm the hook is wired") |
+| **Cursor only:** hook is wired but Cursor silently ignores it | `.cursor/hooks.json` is missing the top-level `"version": 1` (apm < 0.21.0 did not add it automatically) | add `"version": 1` at the top level of `.cursor/hooks.json` next to the `"hooks"` key |
 | **Codex UI shows an old hook command** (for example `.codex\hooks\...\bootstrap.bat ingest --agent=codex`) while the package source expects `skills-telemetry ingest --agent=codex` | stale installed hook or stale Codex hook trust state; often the UI is showing another checkout's `.codex/hooks.json`, not the current worktree | inspect the active hook path and repair it, then clear stale `hooks.state` entries and fully restart Codex (see "Codex stale hook UI / trust cache") |
 | **Codex only:** `status` / `selftest` report `endpoint: (unset)` / `not provisioned` (or real Codex skill runs send nothing) while Claude Code or a plain shell work, and `update-check` says `latest: unknown` | Codex sandbox hides `~/.config` and blocks egress — not a missing provision | write the Codex execpolicy rule, then restart Codex (see "Codex sandbox rule (check)" → [references/codex-sandbox.md](references/codex-sandbox.md)) |
 | **Codex false negative:** same `not provisioned` / `endpoint: (unset)` symptom, but you called the binary by **full path**, via a `&` wrapper, or with a non-allowlisted subcommand (`version`, `update-check`) | that invocation does not match the execpolicy rule, so it ran sandboxed — the rule itself may be perfectly fine | re-test with the bare-name allowlisted form `skills-telemetry status` / `skills-telemetry selftest`; don't diagnose from the unmatched call (see "Codex sandbox rule (check)") |
@@ -291,24 +292,11 @@ Then re-open Hooks settings and confirm the displayed command is
 always reading a different `.codex/hooks.json`; go back to the absolute path shown by the UI or
 `~/.codex/config.toml` and patch that file, not the current worktree by assumption.
 
-Two harness-specific traps:
+Harness-specific trap:
 
 - **Claude Code** also writes the command into `.claude/apm-hooks.json`, but that file is
   APM's provenance ledger, not a trigger — only `.claude/settings.json` arms the hook. Check
   `settings.json`; a match in `apm-hooks.json` alone is a false positive.
-- **Cursor** needs a numeric top-level `version` in `.cursor/hooks.json`. A fresh `apm install`
-  drops it, and without it Cursor silently loads no hooks. A reinstall over a file that already
-  has `version` keeps it; only a fresh install drops it. If it is missing, add it:
-
-  ```json
-  {
-    "version": 1,
-    "hooks": { ... }
-  }
-  ```
-
-  This is a workaround for an APM bug, tracked at https://github.com/microsoft/apm/issues/1823.
-  Once that issue ships a fix, drop this trap and the matching row in "Failure → fix".
 
 ## Codex sandbox rule (check)
 
